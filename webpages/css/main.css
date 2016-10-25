@@ -1514,6 +1514,10 @@ body:not(.page-about-you) #paper.no-data table.experiments {
   border: none;
 }
 
+#paper .option-not-checked {
+  display: none;
+}
+
 /* validation
  *
  *

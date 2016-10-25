@@ -410,6 +410,8 @@ function extractColumnForSending(storageColumn) {
     title: storageColumn.title,
     type: storageColumn.type,
     description: storageColumn.description,
+    formula: storageColumn.formula,
+    computedColumns: storageColumn.computedColumns,
     definedBy: storageColumn.definedBy,
     ctime: storageColumn.ctime,
     mtime: storageColumn.mtime,
@@ -435,11 +437,14 @@ function saveColumn(req, res, next) {
 
 function extractReceivedColumn(recCol) {
   // expecting receivedColumn to come from JSON.parse()
+
   return {
     id: tools.string(recCol.id),
     title: tools.string(recCol.title),
     type: tools.string(recCol.type),
     description: tools.string(recCol.description),
+    formula: tools.string(recCol.formula),
+    computedColumns: tools.array(recCol.computedColumns, tools.string),
     CHECKdefinedBy: tools.string(recCol.definedBy), // can't be changed but should be checked
     CHECKctime: tools.number(recCol.ctime),         // can't be changed but should be checked
     // mtime: tools.number(recCol.mtime),           // will be updated

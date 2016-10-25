@@ -487,4 +487,35 @@
     );
   }
 
+// Computed columns
+// TODO: Jack add heading please
+  _.definedOrEmpty = function definedOrEmpty(array, index) {
+    var returnString;
+    try {
+      returnString = array[index];
+    }
+    catch (err) {
+      // It wasn't there, so we'll just send the UI ''
+      returnString = '';
+    }
+    return returnString;
+  };
+
+  _.noOfParamsByName = function noOfParamsByName(name) {
+    // If '' or undefined, then the answer is obvious
+    if (name === '' || name === undefined) return 0;
+
+    var noOfParams = window['lima'][name].length;
+    return noOfParams;
+  };
+
+  // from: http://stackoverflow.com/questions/359788/how-to-execute-a-javascript-function-when-i-have-its-name-as-a-string
+  // call via executeFunctionByName("My.Namespace.functionName", window, arguments);
+  _.executeFunctionByName = function executeFunctionByName(functionName, context, argsArray) {
+      var namespaces = functionName.split(".");
+      for (var i = 0; i < namespaces.length; i++) {
+          context = context[namespaces[i]];
+      }
+      return context.apply(context, argsArray);
+  };
 })(document, window);
