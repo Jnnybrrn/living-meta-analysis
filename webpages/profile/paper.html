@@ -3,6 +3,7 @@
 <script src="/lib/promise.js"></script>
 <script src="/lib/fetch.js"></script>
 <script src="https://apis.google.com/js/platform.js"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="/css/main.css">
 
 <!-- Do not send referrer, so Links are followed directly -->
@@ -65,6 +66,7 @@
       <span class="unsavedmessage notunpin" title="click here to go to the first unconfirmed value">some value(s) need confirmation to be saved</span>
       <span class="edityourcopy"><a href="#">Edit your copy</a></span>
     </header>
+    <span class="reset-hidden-cols"><a href="#">Reset hidden cols (debug)</a></span>
     <p>Entered <span class="enteredby only-not-yours needs-owner"> by <a class="value" href="error">error</a></span><span class="ctime"> on <span class="value date">error</span></span></p>
     <!-- <p class="authors">Authors:
       <span class="value notediting">error</span>
@@ -178,8 +180,9 @@
 </template>
 <template id="col-heading-template">
   <th class="popupboxtrigger">
-    <div class="popupboxhighlight">
+    <div class="popupboxhighlight colheading">
       <span class="coltitle">error</span>
+      <div class="show-hide material-icons">visibility_off</div>
     </div>
     <div class="fullcolinfo popupbox" data-boxtype='fullcolinfo'>
       <div class="pin"></div>

@@ -14,7 +14,7 @@ const config = require('./config');
 
 const gcloud = require('google-cloud')(config.gcloudProject);
 
-const datastore = gcloud.datastore({ namespace: config.gcloudDatastoreNamespace });
+const datastore = gcloud.datastore({ namespace: config.gcloudDatastoreNamespace, apiEndpoint: 'https://localhost:8757' });
 
 const TITLE_RE = module.exports.TITLE_RE = '[a-zA-Z0-9.-]+';
 const TITLE_REXP = new RegExp(`^${TITLE_RE}$`);
@@ -505,6 +505,8 @@ module.exports.savePaper = (paper, email, origTitle) => {
         }
       };
     }
+    console.log(paper);
+    console.log(paperCache);
 
     // validate incoming data
     checkForDisallowedChanges(paper, origPaper, columns);

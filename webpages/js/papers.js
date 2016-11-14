@@ -389,10 +389,29 @@
      *
      */
 
+    // Hidden columns (initialise if missing)..
+    if (!paper.hiddenCols) {
+      console.log("I'm setting hiddenCols to {}")
+      paper.hiddenCols = {}
+      console.log(paper.hiddenCols);
+    }
+
     // fill column headings
     var headingsRowNode = _.findEl(table, 'tr:first-child');
     var addColumnNode = _.findEl(table, 'tr:first-child > th.add');
     showColumns.forEach(function (colId) {
+      console.log('colId for this loop is.. ' + colId);
+      // If hidden -
+        // Find last column in page
+          // Draw mark on it to denote hidden col..
+        // Don't display the hiddenColumn
+      // if (_.isHiddenCol(colId, paper.hiddenCols)){
+      //   console.log('Column ID that is "hidden".. ' + colId);
+      //   var allColsInPage = _.findEls('.colheading');
+      //   var lastCol = allColsInPage[allColsInPage.length-1];
+      //   console.log(allColsInPage);
+      //   console.log(lastCol);
+      // }
       var th = _.cloneTemplate('col-heading-template').children[0];
       _.addEventListener(th, 'button.move', 'click', moveColumn);
       headingsRowNode.insertBefore(th, addColumnNode);
@@ -433,6 +452,12 @@
           _.fillEls(th, '.coltitle + .coltitlerename', 'rename');
           _.removeClass(th, '.coltitle.editing:not(.unsaved):not(.validationerror)', 'new');
         }
+
+        _.setDataProps(th, '.show-hide', 'id', col.id);
+        addShowHideUpdater(th, '.show-hide', paper);
+
+        // DELETE ME WHEN NOT TESTING / OTHER WAYS TO CLEAR EXIST
+        addResetHiddenColsUpdater('.reset-hidden-cols', paper);
 
         addOnInputUpdater(th, '.coldescription', 'textContent', identity, col, ['description']);
 
@@ -1039,6 +1064,8 @@
   }
 
   function savePaper() {
+    // SOMEWHERE AROUND HERE. Add hiddenCols to paper currentPaper
+    // console.log(currentPaper);
     return lima.getGapiIDToken()
       .then(function(idToken) {
         return fetch(currentPaperUrl, {
@@ -1107,7 +1134,15 @@
     if (Array.isArray(paper.columnOrder)) paper.columnOrder.forEach(addColumn);
 
     function addColumn(key) {
-      if (!(key in showColumnsHash)) {
+      var hiddenCol = _.isHiddenCol(key,paper);
+      if (hiddenCol) {
+        console.log('Its a hidden col');
+        showColumnsHash[key] = undefined;
+        // early return
+        return;
+      }
+
+      if (!(key in showColumnsHash) && !hiddenCol) {
         var col = lima.columns[key];
         showColumnsHash[key] = col;
         switch (col.type) {
@@ -1424,6 +1459,38 @@
     cancelEls.forEach(function (cancelEl) {
       cancelEl.onclick = cancel;
     })
+  }
+
+  function addShowHideUpdater(root, selector, paper){
+    if (!(root instanceof Node)) {
+      paper = selector;
+      selector = root;
+      root = document;
+    }
+
+    _.findEls(root, selector).forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        paper.hiddenCols[e.target.dataset.id] = 1;
+        updatePaperView();
+        _.scheduleSave(paper);
+      });
+    });
+  }
+
+  function addResetHiddenColsUpdater(root, selector, paper){
+    if (!(root instanceof Node)) {
+      paper = selector;
+      selector = root;
+      root = document;
+    }
+
+    _.findEls(root, selector).forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        paper.hiddenCols = {};
+        updatePaperView();
+        _.scheduleSave(paper);
+      });
+    });
   }
 
   function assignDeepValue(target, targetProp, value) {

@@ -487,4 +487,21 @@
     );
   }
 
+// START HERE... Notes..:
+// For some reason, this .hiddenCols is returning undefined but the object is there..
+// Once sorted, append arrows in papers.js? Also need a "hide" button somewhere.
+
+  _.isHiddenCol = function isHiddenCol(col, paper) {
+    // We might be given hiddenCols as undefined, in which case return early.
+    // console.log(col);
+    // console.log(paper);
+    // console.log(paper.hiddenCols);
+    if (typeof paper.hiddenCols === 'undefined' || !(paper.hiddenCols[col] == 1) ) {
+      console.log("Returning false");
+      return false;
+    }
+    console.log("Returning true");
+    return true;
+  };
+
 })(document, window);

@@ -240,6 +240,7 @@ function extractPaperForSending(storagePaper, includeDataValues, email) {
     link: storagePaper.link,
     doi: storagePaper.doi,
     tags: storagePaper.tags,
+    hiddenCols: storagePaper.hiddenCols,
     // todo comments in various places?
   };
 
@@ -249,6 +250,7 @@ function extractPaperForSending(storagePaper, includeDataValues, email) {
     // todo this may not be how the data ends up being encoded
     retval.experiments = storagePaper.experiments;
     retval.columnOrder = storagePaper.columnOrder;
+    retval.hiddenCols = storagePaper.hiddenCols;
   }
 
   return retval;
@@ -270,6 +272,7 @@ function extractReceivedPaper(receivedPaper) {
     experiments: tools.array(receivedPaper.experiments, extractReceivedExperiment),
     comments: tools.array(receivedPaper.comments, extractReceivedComment),
     columnOrder: tools.array(receivedPaper.columnOrder, tools.string),
+    hiddenCols: receivedPaper.hiddenCols,
   };
 
   // todo anything else recently added to the data
