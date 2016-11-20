@@ -414,6 +414,10 @@
      *
      */
 
+    // Hidden columns (initialise if missing)..
+    if (!paper.hiddenCols) {
+      paper.hiddenCols = {}
+    }
 
     var headingsRowNode = _.findEl(table, 'tr:first-child');
     var addColumnNode = _.findEl(table, 'tr:first-child > th.add');
@@ -421,10 +425,42 @@
     var curtime = Date.now();
     var user = lima.getAuthenticatedUserEmail();
 
+    var lastColumnsHidden = [];
+
     paper.columnOrder.forEach(function (colId) {
+      var hiddenCol = _.isHiddenCol(colId,paper);
+      if (hiddenCol) {
+        // If we're the last column, we need to behave differently.
+        if (colId === paper.columnOrder[paper.columnOrder.length-1]) {
+          _.fillEls(addColumnNode, '.show', 'visibility');
+          _.setDataProps(addColumnNode, '.show', 'id', colId);
+          _.addEventListener(addColumnNode, '.show', 'click', function (e) {
+            delete paper.hiddenCols[e.target.dataset.id];
+            updatePaperView();
+            _.scheduleSave(paper);
+          });
+        } else {
+        // Save the fact that we just hid a column, so the next non-hidden
+        // column can behave differently (i.e show a arrow).
+        lastColumnsHidden.push(colId);
+        }
+        // early return
+        return;
+      }
+
       var col = lima.columns[colId];
       var th = _.cloneTemplate('col-heading-template').children[0];
       headingsRowNode.insertBefore(th, addColumnNode);
+
+      if (lastColumnsHidden.length > 0) {
+        // We know that previously where were x hidden columns. Show the button +
+        // Give it dataset.ids.
+        _.setDataProps(th, '.show', 'ids', JSON.stringify(lastColumnsHidden));
+        _.fillEls(th, '.show', 'visibility');
+
+        // Clear out lastColumnsHidden.
+        lastColumnsHidden = [];
+      }
 
       _.fillEls(th, '.coltitle', col.title);
       _.fillEls(th, '.coldescription', col.description);
@@ -436,6 +472,19 @@
       _.setDataProps(th, '.needs-owner', 'owner', col.definedBy || user);
 
       _.addEventListener(th, 'button.move', 'click', moveColumn);
+      _.addEventListener(th, 'button.hide', 'click', function () {
+          var el = this;
+          var colId = el.dataset.id;
+
+          // TODO: Check if this is the last column, if it is don't add it and
+          // display an error!
+
+          paper.hiddenCols[colId] = 1;
+          // pinnedBox would have been this column now hidden, so clear
+          pinnedBox = '';
+          updatePaperView();
+          _.scheduleSave(currentPaper);
+        });
       _.setDataProps(th, 'button', 'id', col.id);
 
       th.classList.add(col.type);
@@ -449,6 +498,22 @@
         // todo move the confirm/rename difference into html, but that means we have multiple confirm buttons and addConfirmedUpdater might be unhappy
         _.fillEls(th, '.coltitle + .coltitlerename', 'confirm');
       }
+
+      _.addEventListener(th, '.show', 'click', function (e) {
+        var columns = JSON.parse(e.target.dataset.ids);
+
+        columns.forEach( function( colId ) {
+          delete paper.hiddenCols[colId];
+        });
+        updatePaperView();
+        _.scheduleSave(paper);
+      });
+
+      // DELETE ME WHEN NOT TESTING / OTHER WAYS TO CLEAR EXIST
+      _.addEventListener('.reset-hidden-cols', 'click', function (e) {
+        paper.hiddenCols = {};
+        _.scheduleSave(paper);
+      });
 
       addOnInputUpdater(th, '.coldescription', 'textContent', identity, col, ['description']);
 
@@ -499,7 +564,14 @@
       setupPopupBoxPinning(tr, '.fullrowinfo.popupbox', expIndex);
 
       paper.columnOrder.forEach(function (colId) {
+        var hiddenCol = _.isHiddenCol(colId,paper);
+        if (hiddenCol) {
+          // early return
+          return;
+        }
+
         var col = lima.columns[colId];
+
         var td = _.cloneTemplate('experiment-datum-template').children[0];
         tr.appendChild(td);
 
@@ -528,7 +600,6 @@
         }
 
         setupPopupBoxPinning(td, '.datum.popupbox', expIndex + '$' + colId);
-
 
         // populate comments
         fillComments('comment-template', td, '.commentcount', '.datum.popupbox main', paper, ['experiments', expIndex, 'data', colId, 'comments']);

@@ -576,6 +576,22 @@ section.list > ul > li > ul.tags > li {
   display: inline-block;
 }
 
+#paper .show {
+  text-align: right;
+  max-width: 2em;
+  font-size: 16px;
+  position: fixed;
+  right: 1.5em;
+  top: 0px;
+  color: rgba(0, 0, 0, 0.26);
+  z-index: 1;
+}
+
+#paper .show:hover {
+  color: rgba(0, 0, 0, 1);
+  cursor: pointer;
+}
+
 #paper .popupboxhighlight .coltitle:empty:before {
   content: 'enter title';
   color: #aaa;
