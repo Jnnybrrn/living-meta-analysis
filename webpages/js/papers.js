@@ -577,6 +577,26 @@
 
           addOnInputUpdater(td, '.value', 'textContent', identity, paper, ['experiments', expIndex, 'data', colId, 'value'], recalculateComputedData);
 
+          // handle tabbing & enter to navigate the table.
+          _.addEventListener(td, '.value', 'keydown', function(e){
+            if (e.keyCode == 9){ // tab
+              e.preventDefault();
+              if (e.shiftKey) {
+                changeCurrentCell(e.currentTarget, 'left', '.editing');
+              } else {
+                changeCurrentCell(e.currentTarget, 'right', '.editing');
+              }
+            }
+            if (e.keyCode == 13) { // enter
+              e.preventDefault();
+              if (e.shiftKey) {
+                changeCurrentCell(e.currentTarget, 'up', '.editing');
+              } else {
+                changeCurrentCell(e.currentTarget, 'down', '.editing');
+              }
+            }
+          });
+
           var user = lima.getAuthenticatedUserEmail();
           _.fillEls (td, '.valenteredby', val && val.enteredBy || user);
           _.setProps(td, '.valenteredby', 'href', '/' + (val && val.enteredBy || user) + '/');
@@ -1808,6 +1828,68 @@
     ev.target.focus();
   }
 
+  var changeCurrentCell = function changeCurrentCell(currentCell, direction, childSelector) {
+    if (!currentCell || !direction) return;
+
+    if (currentCell.nodeName == "SPAN") {
+      // currentCell is the .value, we need to grab the td it is in.
+      var currentCell = currentCell.parentNode;
+
+      // check this is a td, else we have found the wrong something..
+      if (!isTdElement(currentCell)) {
+        console.log("Got parentElement " + currentCell + " which is not a td");
+        return;
+      }
+    }
+    console.log(currentCell);
+    var nextCell = null;
+    var toFocus = null;
+
+    switch (direction) {
+      case 'up':
+        console.log('up');
+        break;
+      case 'down':
+        console.log('down');
+        break;
+      case 'left':
+        console.log('left');
+        nextCell = currentCell.previousElementSibling;
+        if (!isTdElement(nextCell)) {
+          // early return
+          console.log('Not a td, assume we hit a tr');
+          break;
+        }
+        toFocus = _.findEl(nextCell, childSelector);
+        if (toFocus) {
+          focusElement(toFocus);
+        } else {
+          console.log("Can't find next element to focus")
+        }
+        break;
+      case 'right':
+        console.log('right');
+        nextCell = currentCell.nextElementSibling;
+        if (!isTdElement(nextCell)) {
+          // early return
+          console.log('Not a td, assume we hit a tr');
+          console.log(nextCell);
+          break;
+        }
+        toFocus = _.findEl(nextCell, childSelector);
+        if (toFocus) {
+          focusElement(toFocus);
+        } else {
+          console.log("Can't find next element to focus")
+        }
+        break;
+    }
+  }
+
+  var isTdElement = function isTdElement(element) {
+    if (element.nodeName == "TD") return true;
+    return false;
+  }
 
   /* api
    *
