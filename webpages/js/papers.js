@@ -578,24 +578,7 @@
           addOnInputUpdater(td, '.value', 'textContent', identity, paper, ['experiments', expIndex, 'data', colId, 'value'], recalculateComputedData);
 
           // handle tabbing & enter to navigate the table.
-          _.addEventListener(td, '.value', 'keydown', function(e){
-            if (e.keyCode == 9){ // tab
-              e.preventDefault();
-              if (e.shiftKey) {
-                changeCurrentCell(e.currentTarget, 'left', '.editing');
-              } else {
-                changeCurrentCell(e.currentTarget, 'right', '.editing');
-              }
-            }
-            if (e.keyCode == 13) { // enter
-              e.preventDefault();
-              if (e.shiftKey) {
-                changeCurrentCell(e.currentTarget, 'up', '.editing');
-              } else {
-                changeCurrentCell(e.currentTarget, 'down', '.editing');
-              }
-            }
-          });
+          td.addEventListener('keydown', function(e) {setupMovementControl(e, 'span.editing')});
 
           var user = lima.getAuthenticatedUserEmail();
           _.fillEls (td, '.valenteredby', val && val.enteredBy || user);
@@ -626,6 +609,8 @@
 
             _.fillEls(td, '.value', val);
           });
+
+          td.addEventListener('keydown', function(e) {setupMovementControl(e, 'span.value.computed')});
         }
 
         td.classList.add(col.type);
@@ -1828,6 +1813,27 @@
     ev.target.focus();
   }
 
+  var setupMovementControl = function setupMovementControl(e, selector) {
+    console.log(e);
+    console.log(selector);
+    if (e.keyCode == 9){ // tab
+      e.preventDefault();
+      if (e.shiftKey) {
+        changeCurrentCell(e.currentTarget, 'left', selector);
+      } else {
+        changeCurrentCell(e.currentTarget, 'right', selector);
+      }
+    }
+    if (e.keyCode == 13) { // enter
+      e.preventDefault();
+      if (e.shiftKey) {
+        changeCurrentCell(e.currentTarget, 'up', selector);
+      } else {
+        changeCurrentCell(e.currentTarget, 'down', selector);
+      }
+    }
+  }
+
   var changeCurrentCell = function changeCurrentCell(currentCell, direction, childSelector) {
     if (!currentCell || !direction) return;
 
@@ -1836,59 +1842,75 @@
       var currentCell = currentCell.parentNode;
 
       // check this is a td, else we have found the wrong something..
-      if (!isTdElement(currentCell)) {
+      if (!isTdEl(currentCell)) {
         console.log("Got parentElement " + currentCell + " which is not a td");
         return;
       }
     }
-    console.log(currentCell);
     var nextCell = null;
-    var toFocus = null;
 
     switch (direction) {
       case 'up':
-        console.log('up');
+        var index = currentCell.cellIndex-1;
+        var nextRow = currentCell.parentNode.previousElementSibling;
+        changeCellVertical(nextRow, childSelector, index)
         break;
+
       case 'down':
-        console.log('down');
+        var index = currentCell.cellIndex-1;
+        var nextRow = currentCell.parentNode.nextElementSibling;
+        changeCellVertical(nextRow, childSelector, index)
         break;
+
       case 'left':
-        console.log('left');
         nextCell = currentCell.previousElementSibling;
-        if (!isTdElement(nextCell)) {
-          // early return
-          console.log('Not a td, assume we hit a tr');
-          break;
-        }
-        toFocus = _.findEl(nextCell, childSelector);
-        if (toFocus) {
-          focusElement(toFocus);
-        } else {
-          console.log("Can't find next element to focus")
-        }
+        changeCellHorizontal(nextCell, childSelector);
         break;
+
       case 'right':
-        console.log('right');
         nextCell = currentCell.nextElementSibling;
-        if (!isTdElement(nextCell)) {
-          // early return
-          console.log('Not a td, assume we hit a tr');
-          console.log(nextCell);
-          break;
-        }
-        toFocus = _.findEl(nextCell, childSelector);
-        if (toFocus) {
-          focusElement(toFocus);
-        } else {
-          console.log("Can't find next element to focus")
-        }
+        changeCellHorizontal(nextCell, childSelector);
         break;
     }
   }
 
-  var isTdElement = function isTdElement(element) {
-    if (element.nodeName == "TD") return true;
+  var isTdEl = function isTdEl(element) {
+    if (element != undefined && element.nodeName == "TD") return true;
     return false;
+  }
+
+  var isTrEl = function isTrEl(element) {
+    if (element != undefined && element.nodeName == "TR") return true;
+    return false;
+  }
+
+  var changeCellHorizontal = function changeCellHorizontal(rootCell, childSelector, xIndex) {
+    if (!isTdEl(rootCell)) {
+      // assume we've hit an edge, early return
+      return;
+    }
+    var toFocus = _.findEl(rootCell, childSelector);
+    console.log(toFocus);
+    if (toFocus) {
+      focusElement(toFocus);
+    } else {
+      console.log("Can't find next element to focus")
+    }
+  }
+
+  var changeCellVertical = function changeCellVertical(rootRow, childSelector, xIndex) {
+    if (!isTrEl(rootRow)) {
+      // assume we've hit an edge, early return
+      return;
+    }
+
+    var toFocusArray = _.findEls(rootRow, childSelector);
+    var toFocus = toFocusArray[xIndex];
+    if (toFocus) {
+      focusElement(toFocus);
+    } else {
+      console.log("Can't find next element to focus");
+    }
   }
 
   /* api
