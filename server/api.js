@@ -412,12 +412,12 @@ function extractMetaanalysisForSending(storageMetaanalysis, includeDataValues, e
   retval.apiurl = apiMetaanalysisURL(email, retval.title);
 
   // TODO: This will need to be .papers, hiddenExperiments, hiddenPapers etc...
-  // if (includeDataValues) {
+  if (includeDataValues) {
   //   // todo this may not be how the data ends up being encoded
-  //   retval.experiments = storagePaper.experiments;
-  //   retval.columnOrder = storagePaper.columnOrder;
-  //   retval.hiddenCols = storagePaper.hiddenCols;
-  // }
+    retval.columnOrder = storageMetaanalysis.columnOrder;
+    retval.experiments = storageMetaanalysis.experiments;
+    retval.hiddenCols = storageMetaanalysis.hiddenCols;
+  }
 
   return retval;
 }
@@ -436,10 +436,9 @@ function extractReceivedMetaanalysis(receivedMetaanalysis) {
     doi: tools.string(receivedMetaanalysis.doi),
     tags: tools.array(receivedMetaanalysis.tags, tools.string),
     comments: tools.array(receivedMetaanalysis.comments, extractReceivedComment),
-    // TODO: As above.
-    //experiments: tools.array(receivedMetaanalysis.experiments, extractReceivedExperiment),
-    //columnOrder: tools.array(receivedMetaanalysis.columnOrder, tools.string),
-    //hiddenCols: tools.array(receivedMetaanalysis.hiddenCols, tools.string),
+    experiments: tools.array(receivedMetaanalysis.experiments, extractReceivedExperiment),
+    columnOrder: tools.array(receivedMetaanalysis.columnOrder, tools.string),
+    hiddenCols: tools.array(receivedMetaanalysis.hiddenCols, tools.string),
   };
 
   return retval;
