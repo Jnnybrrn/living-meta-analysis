@@ -58,6 +58,8 @@ api.post(`/papers/:email(${EMAIL_ADDRESS_RE})/:title(${TITLE_RE})/`,
 api.get('/columns', REGISTER_USER, listColumns);
 api.post('/columns', GUARD, REGISTER_USER, jsonBodyParser, saveColumn);
 
+api.get('/metaanalyses/titles', listMetaanalsisTitles);
+
 api.get(`/metaanalyses/:email(${EMAIL_ADDRESS_RE})`, REGISTER_USER, listMetaanalysesForUser);
 
 
@@ -340,30 +342,107 @@ function listTopPapers(req, res, next) {
  *
  *
  */
+function listMetaanalysisTitles(req, res, next) {
+  storage.listMetaanalysisTitles()
+  .then((titles) => {
+    const retval = [];
+    titles.forEach((t) => {
+      if (typeof t === 'string') retval.push(t);
+    });
+    res.json(retval);
+  })
+  .catch((err) => next(err));
+}
+
 function listMetaanalysesForUser(req, res, next) {
-  // todo by email
   storage.getMetaanalysesEnteredBy(req.params.email)
   .then((mas) => {
     if (mas.length === 0) throw new Error('no metaanalyses found');
 
     const retval = [];
     mas.forEach((m) => {
-      const retMA = {
-        id: m.id,
-        title: m.title,
-        enteredBy: m.enteredBy,
-        ctime: m.ctime,
-        mtime: m.mtime,
-        published: m.published,
-        description: m.description,
-        extraAuthors: m.extraAuthors,
-        tags: m.tags,
-      };
-      retval.push(retMA);
+      retval.push(extractMetaanalysisForSending(m, false, req.params.email));
     });
     res.json(retval);
   })
   .catch(() => next(new NotFoundError()));
+}
+
+function getMetaanalysisVersion(req, res, next) {
+  storage.getMetaanalysisByTitle(req.params.email, req.params.title, req.params.time)
+  .then((p) => {
+    res.json(extractMetaanalysisForSending(p, true, req.params.email));
+  })
+  .catch((e) => {
+    console.error(e);
+    next(new NotFoundError());
+  });
+}
+
+function saveMetaanalysis(req, res, next) {
+  // extract from incoming data stuff that is allowed
+  storage.saveMetaanalysis(extractReceivedMetaanalysis(req.body), req.user.emails[0].value, req.params.title)
+  .then((p) => {
+    res.json(extractMetaanalysisForSending(p, true, req.params.email));
+  })
+  .catch((e) => {
+    if (e instanceof ValidationError) {
+      next(e);
+    } else {
+      next(new InternalError(e));
+    }
+  });
+}
+
+function extractMetaanalysisForSending(storageMetaanalysis, includeDataValues, email) {
+  const retval = {
+    id: storageMetaanalysis.id,
+    title: storageMetaanalysis.title,
+    enteredBy: storageMetaanalysis.enteredBy,
+    ctime: storageMetaanalysis.ctime,
+    mtime: storageMetaanalysis.mtime,
+    reference: storageMetaanalysis.reference,
+    description: storageMetaanalysis.description,
+    link: storageMetaanalysis.link,
+    doi: storageMetaanalysis.doi,
+    tags: storageMetaanalysis.tags,
+    // todo comments in various places?
+  };
+
+  retval.apiurl = apiMetaanalysisURL(email, retval.title);
+
+  // TODO: This will need to be .papers, hiddenExperiments, hiddenPapers etc...
+  // if (includeDataValues) {
+  //   // todo this may not be how the data ends up being encoded
+  //   retval.experiments = storagePaper.experiments;
+  //   retval.columnOrder = storagePaper.columnOrder;
+  //   retval.hiddenCols = storagePaper.hiddenCols;
+  // }
+
+  return retval;
+}
+
+function extractReceivedMetaanalysis(receivedMetaanalysis) {
+  // expecting receivedMetaanalysis to come from JSON.parse()
+  const retval = {
+    id: tools.string(receivedMetaanalysis.id),                  // identifies the paper to be changed
+    title: tools.string(receivedMetaanalysis.title),
+    CHECKenteredBy: tools.string(receivedMetaanalysis.enteredBy), // can't be changed but should be checked
+    CHECKctime: tools.number(receivedMetaanalysis.ctime),         // can't be changed but should be checked
+    // mtime: tools.number(receivedMetaanalysis.mtime),         // will be updated
+    reference: tools.string(receivedMetaanalysis.reference),
+    description: tools.string(receivedMetaanalysis.description),
+    link: tools.string(receivedMetaanalysis.link),
+    doi: tools.string(receivedMetaanalysis.doi),
+    tags: tools.array(receivedMetaanalysis.tags, tools.string),
+    comments: tools.array(receivedMetaanalysis.comments, extractReceivedComment),
+    // TODO: As above.
+    //experiments: tools.array(receivedMetaanalysis.experiments, extractReceivedExperiment),
+    //columnOrder: tools.array(receivedMetaanalysis.columnOrder, tools.string),
+    //hiddenCols: tools.array(receivedMetaanalysis.hiddenCols, tools.string),
+  };
+
+  return retval;
 }
 
 function listTopMetaanalyses(req, res, next) {

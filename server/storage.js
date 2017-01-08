@@ -14,7 +14,7 @@ const config = require('./config');
 
 const gcloud = require('google-cloud')(config.gcloudProject);
 
-const datastore = gcloud.datastore({ namespace: config.gcloudDatastoreNamespace });
+const datastore = gcloud.datastore({ namespace: config.gcloudDatastoreNamespace, apiEndpoint: "https://localhost:8861" });
 
 const TITLE_RE = module.exports.TITLE_RE = '[a-zA-Z0-9.-]+';
 const TITLE_REXP = new RegExp(`^${TITLE_RE}$`);
@@ -572,6 +572,7 @@ module.exports.savePaper = (paper, email, origTitle) => {
  *
  */
 
+/* TODO: This below is now probably not quite correct
 /* a meta-analysis record looks like this:
 {
   id: "/id/m/4904",
@@ -591,57 +592,77 @@ module.exports.savePaper = (paper, email, origTitle) => {
 }
  */
 
-const metaanalyses = [
-  {
-    id: '/id/m/4904',
-    title: 'memory96',
-    enteredBy: 'jacek.kopecky@port.ac.uk',
-    ctime: 0,
-    mtime: 5,
-    published: '1997-08-00', // for simply august, precise date unspecified
-    description: 'brief description lorem ipsum',
-    extraAuthors: 'J. Smith, J. Doe',
-    tags: [
-      'memory',
-    ],
-  },
-  {
-    id: '/id/m/4905',
-    title: 'misinformation04',
-    enteredBy: 'jacek.kopecky@port.ac.uk',
-    ctime: 0,
-    mtime: 5,
-    published: '2005-01-17', // for simply august, precise date unspecified
-    description: `brief description lorem ipsum brief
-description lorem ipsum brief description lorem ipsum
-brief description lorem ipsum`,
-    extraAuthors: 'J. Doe, J. Smith',
-  },
-];
+let metaanalysisCache;
+const metaanalysisTitles = [];
 
+// get all immediately on the start of the server
+getAllMetaanalyses();
+
+function getAllMetaanalyses() {
+  paperCache = new Promise((resolve, reject) => {
+    console.log('getAllMetaanalyses: making a datastore request');
+    const retval = [];
+    datastore.createQuery('Metaanalysis').run()
+    .on('error', (err) => {
+      console.error('error retrieving metaanalyses');
+      console.error(err);
+      setTimeout(getAllMetaanalyses, 60 * 1000); // try loading again in a minute
+      reject(err);
+    })
+    .on('data', (entity) => {
+      retval.push(migratePaper(entity.data));
+      metaanalysisTitles.push(entity.data.title);
+    })
+    .on('end', () => {
+      console.log(`getAllMetaanalyses(): ${retval.length} done`);
+      resolve(retval);
+    });
+  });
+}
+
+/*
+ * change paper from an old format to the new one, if need be
+ */
+function migrateMetaanalysis(metaanalysis) {
+  // do nothing for now
+  return metaanalysis;
+}
 
 module.exports.getMetaanalysesEnteredBy = (email) => {
   // todo also return metaanalyses contributed to by `email`
-  return Promise.resolve(metaanalyses.filter((ma) => ma.enteredBy === email));
+  return metaanalysisCache.then(
+    (metaanalyses) => metaanalyses.filter((ma) => ma.enteredBy === email)
+  );
 };
 
+module.exports.getMetaanalysisByTitle = (email, title, time) => {
+  // todo if time is specified, compute a version as of that time
+  if (time) return Promise.reject('getMetaanalysisByTitle with time not implemented');
 
-module.exports.getMetaanalysisByTitle = (email, title) => {
-  return new Promise((resolve, reject) => {
-    // todo different users can use different titles for the same thing
+  // todo different users can use different titles for the same thing
+  if (title === 'new') return Promise.resolve(newMetaanalysis(email));
+  return metaanalysisCache
+  .then((metaanalyses) => {
     for (const ma of metaanalyses) {
       if (ma.title === title) {
-        resolve(ma);
-        return;
+        return p;
       }
     }
-    reject();
+    return Promise.reject();
   });
 };
 
-module.exports.listMetaanalyses = () => {
-  return Promise.resolve(metaanalyses);
-};
+function newMetaanalysis(email) {
+  const time = tools.uniqueNow();
+  return {
+    enteredBy: email,
+    ctime: time,
+    mtime: time,
+  };
+}
+
+module.exports.listMetaanalyses = () => metaanalysisCache;
+module.exports.listMetaanalysisTitles = () => metaanalysisCache.then(() => metaanalysisTitles);
 
 
 /* columns
