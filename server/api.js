@@ -58,10 +58,19 @@ api.post(`/papers/:email(${EMAIL_ADDRESS_RE})/:title(${TITLE_RE})/`,
 api.get('/columns', REGISTER_USER, listColumns);
 api.post('/columns', GUARD, REGISTER_USER, jsonBodyParser, saveColumn);
 
-api.get('/metaanalyses/titles', listMetaanalsisTitles);
+function apiMetaanalysisURL(email, title) { return `/api/metanalyses/${email}/${title}`; }
 
-api.get(`/metaanalyses/:email(${EMAIL_ADDRESS_RE})`, REGISTER_USER, listMetaanalysesForUser);
+api.get('/metaanalyses/titles', listMetaanalysisTitles);
 
+api.get(`/metaanalyses/:email(${EMAIL_ADDRESS_RE})`,
+        REGISTER_USER, listMetaanalysesForUser);
+
+api.get(`/metaanalyses/:email(${EMAIL_ADDRESS_RE})/:title(${TITLE_RE})/`,
+        REGISTER_USER, getMetaanalysisVersion);
+api.get(`/metaanalyses/:email(${EMAIL_ADDRESS_RE})/:title(${TITLE_RE})/:time([0-9]+)/`,
+        REGISTER_USER, getMetaanalysisVersion);
+api.post(`/metaanalyses/:email(${EMAIL_ADDRESS_RE})/:title(${TITLE_RE})/`,
+        GUARD, SAME_USER, jsonBodyParser, saveMetaanalysis);
 
 /* users
  *

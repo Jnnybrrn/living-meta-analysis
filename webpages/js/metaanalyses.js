@@ -15,7 +15,7 @@
 
   function updatePageURL() {
     // the path of a page for a metaanalysis will be '/email/title/*',
-    // so update the 'title' portion here from the current paper (in case the user changes the title)
+    // so update the 'title' portion here from the current metaanalysis (in case the user changes the title)
     var start = window.location.pathname.indexOf('/', 1) + 1;
     if (start === 0) throw new Error('page url doesn\'t have a title');
 
@@ -63,8 +63,8 @@
       metaanalyses.forEach(function (metaanalysis) {
         var li = _.cloneTemplate('metaanalysis-list-item-template');
         _.fillEls(li, '.name', metaanalysis.title);
-        _.fillEls(li, '.reference', paper.reference);
-        _.setProps(li, '.reference', 'title', paper.reference);
+        _.fillEls(li, '.reference', metaanalysis.reference);
+        _.setProps(li, '.reference', 'title', metaanalysis.reference);
         _.fillEls(li, '.description', metaanalysis.description);
         _.setProps(li, '.description', 'title', metaanalysis.description);
         _.setProps(li, 'a.mainlink', 'href', metaanalysis.title);
@@ -88,9 +88,9 @@ function requestAndFillMetaanalysis() {
   var title = lima.extractMetaanalysisTitleFromUrl();
   _.fillEls('#metaanalysis .title', title);
 
-  lima.getPapers(); // TODO: not yet implemented
+  // lima.getPapers(); // TODO: not yet implemented
 
-  lima.getColumns() // todo getColumns could run in parallel with everything before updatePaperView
+  lima.getColumns() // todo getColumns could run in parallel with everything before updateMetaanalysisView
   .then(lima.getGapiIDToken)
   .then(function (idToken) {
     currentMetaanalysisUrl = '/api/metaanalyses/' + email + '/' + title;
@@ -140,10 +140,10 @@ function requestAndFillMetaanalysis() {
     updateMetaanalysisView();
   }
 
-  function updateaMetaanalysisView(metaanalysis) {
+  function updateMetaanalysisView(metaanalysis) {
     if (!metaanalysis) metaanalysis = currentMetaanalysis;
 
-    if (!(metaanalysis instanceof metaanalysis)) {
+    if (!(metaanalysis instanceof Metaanalysis)) {
       metaanalysis = Object.assign(new Metaanalysis(), metaanalysis);
 
       // TODO: Initialise more empty "things" here.. e.g. metaanalysis.papers = [];
@@ -449,7 +449,7 @@ function requestAndFillMetaanalysis() {
 
       addOnInputUpdater(th, '.coldescription', 'textContent', identity, col, ['description']);
 
-      addConfirmedUpdater(th, '.coltitle.editing', '.coltitle ~ .coltitlerename', '.coltitle ~ * .colrenamecancel', 'textContent', checkColTitle, col, 'title', deleteNewColumn, function(){_.scheduleSave(paper);});
+      addConfirmedUpdater(th, '.coltitle.editing', '.coltitle ~ .coltitlerename', '.coltitle ~ * .colrenamecancel', 'textContent', checkColTitle, col, 'title', deleteNewColumn, function(){_.scheduleSave(metaanalysis);});
 
       setupPopupBoxPinning(th, '.fullcolinfo.popupbox', col.id);
 
@@ -559,7 +559,7 @@ function requestAndFillMetaanalysis() {
 
       setupPopupBoxPinning(tr, '.fullrowinfo.popupbox', expIndex);
 
-      paper.columnOrder.forEach(function (colId) {
+      metaanalysis.columnOrder.forEach(function (colId) {
         // early return - ignore this column
         if (isHiddenCol(colId)) return;
 
@@ -678,7 +678,7 @@ function requestAndFillMetaanalysis() {
       op.value = '';
       select.appendChild(op);
 
-      // Now make an option for each column in paper
+      // Now make an option for each column in metaanalysis
       for (var j = 0; j < metaanalysis.columnOrder.length; j++){
         var colId = metaanalysis.columnOrder[j];
 
@@ -806,7 +806,7 @@ function requestAndFillMetaanalysis() {
    */
 
   function addExperimentColumn() {
-    // if there are no pending changes and if the paper has any data, add a new column to the paper
+    // if there are no pending changes and if the metaanalysis has any data, add a new column to the metaanalysis
     if (lima.checkToPreventForcedSaving()) {
       console.warn('cannot add a column with some edited values pending');
       return;
@@ -885,7 +885,7 @@ function requestAndFillMetaanalysis() {
       _.setDataProps(li, '.needs-owner', 'owner', col.definedBy || user);
       li.dataset.colid = col.id;
 
-      if (currentPaper.columnOrder.indexOf(col.id) > -1) {
+      if (currentMetaanalysis.columnOrder.indexOf(col.id) > -1) {
         li.classList.add('alreadythere');
       }
 
@@ -918,7 +918,7 @@ function requestAndFillMetaanalysis() {
 
     _.removeClass('#metaanalysis th.add .colinfo', 'unpopulated');
 
-    if (currentPaper.columnOrder.indexOf(col.id) > -1) {
+    if (currentMetaanalysis.columnOrder.indexOf(col.id) > -1) {
       _.addClass('#metaanalysis th.add .colinfo', 'alreadythere');
     } else {
       _.removeClass('#metaanalysis th.add .colinfo', 'alreadythere');
@@ -1045,9 +1045,81 @@ function requestAndFillMetaanalysis() {
     }
   }
 
-/////////////////////////////////
+  /* comments
+   *
+   *
+   *    ####   ####  #    # #    # ###### #    # #####  ####
+   *   #    # #    # ##  ## ##  ## #      ##   #   #   #
+   *   #      #    # # ## # # ## # #####  # #  #   #    ####
+   *   #      #    # #    # #    # #      #  # #   #        #
+   *   #    # #    # #    # #    # #      #   ##   #   #    #
+   *    ####   ####  #    # #    # ###### #    #   #    ####
+   *
+   *
+   */
 
+  function fillComments(templateId, root, countSelector, textSelector, metaanalyses, commentsPropPath) {
+    var comments = getDeepValue(metaanalyses, commentsPropPath) || [];
 
+    if (comments.length > 0) {
+      root.classList.add('hascomments');
+    }
+    _.fillEls(root, countSelector, comments.length);
+
+    var user = lima.getAuthenticatedUserEmail();
+
+    var textTargetEl = _.findEl(root, textSelector);
+    textTargetEl.innerHTML = '';
+
+    for (var i = 0; i < comments.length; i++) {
+      var el = _.cloneTemplate(templateId).children[0];
+
+      var comment = comments[i];
+      if (i === comments.length - 1) {
+        _.setDataProps(el, '.needs-owner', 'owner', comment.by || user);
+      } else {
+        // this will disable editing of any comment but the last
+        _.setDataProps(el, '.needs-owner', 'owner', '');
+      }
+
+      _.fillEls(el, '.commentnumber', i+1);
+      _.fillEls(el, '.by', comment.by || user);
+      _.setProps(el, '.by', 'href', '/' + (comment.by || user) + '/');
+      _.fillEls(el, '.ctime', _.formatDateTime(comment.ctime || Date.now()));
+      _.fillEls(el, '.text', comment.text);
+
+      addOnInputUpdater(el, '.text', 'textContent', identity, metaanalyses, commentsPropPath.concat(i, 'text'));
+      textTargetEl.appendChild(el);
+    }
+
+    // events for adding a comment
+    var buttons = _.findEl(root, '.comment.new .buttons');
+    var newComment = _.findEl(root, '.comment.new .text');
+
+    // enable/disable the add button based on content
+    newComment.oninput = function () {
+      _.setProps(buttons, '.confirm', 'disabled', newComment.textContent.trim() == '');
+    }
+
+    // add
+    _.addEventListener(root, '.comment.new .buttons .add', 'click', function() {
+      var text = newComment.textContent;
+      newComment.textContent = '';
+      if (text.trim()) {
+        var comments = getDeepValue(metaanalyses, commentsPropPath, []);
+        comments.push({ text: text });
+        fillComments(templateId, root, countSelector, textSelector, metaanalyses, commentsPropPath);
+        _.setYouOrName(); // the new comment needs to be marked as "yours" so you can edit it
+        _.scheduleSave(metaanalyses);
+      }
+    });
+
+    // cancel
+    _.addEventListener(root, '.comment.new .buttons .cancel', 'click', function() {
+      newComment.textContent = '';
+      newComment.oninput();
+    });
+  }
 
   var paperTitles = [];
   var metaanalysisTitles = [];
@@ -1077,9 +1149,11 @@ function requestAndFillMetaanalysis() {
     }
   }
 
+  var currentMetaanalysisOrigTitle;
+
   function checkTitleUnique(title) {
     if (title === '') throw null; // no message necessary
-    if (title === 'new') throw '"new" is a reserved title';
+    if (title === 'paper' || title === 'metaanalysis') throw '"paper/metaanalysis" are reserved titles';
     if (!title.match(/^[a-zA-Z0-9.-]+$/)) throw 'metaanalysis short name cannot contain spaces or special characters';
     loadAllTitles();
     if (title !== currentMetaanalysisOrigTitle && allTitles.indexOf(title) !== -1) {
@@ -1097,5 +1171,830 @@ function requestAndFillMetaanalysis() {
     }
     return title;
   }
+
+  function checkExperimentTitleUnique(title, editingEl) {
+    if (title === '') throw null; // no message necessary
+    if (!title.match(/^[a-zA-Z0-9.-]+$/)) throw 'only characters and digits';
+    var titles = currentMetaanalysis.experiments.map(function (exp) { return exp.title; });
+    if (title !== editingEl.dataset.origTitle && titles.indexOf(title) !== -1) {
+      throw 'must be unique';
+    }
+    return title;
+  }
+
+  function checkColTitle(title) {
+    if (title === '') throw null; // no message necessary
+    return title;
+  }
+
+  function linkEditTest(ev) {
+    var btn = ev.target;
+    if (!btn) return;
+
+    var linkEl = null;
+    var editEl = null;
+    _.array(btn.parentElement.children).forEach(function (el) {
+      if (el.classList.contains('value')) {
+        if (el.nodeName === 'A') linkEl = el;
+        else if (el.isContentEditable || el.contentEditable === 'true') editEl = el;
+      }
+    })
+
+    if (!linkEl || !editEl) {
+      console.error('linkEditTest cannot find linkEl or editEl');
+      return;
+    }
+
+    var link = editEl.textContent;
+    if (linkEl.dataset.base) link = linkEl.dataset.base + link;
+
+    window.open(link, "linkedittest");
+  }
+
+  function preventLinkEditBlur(ev) {
+    var btn = ev.target;
+    if (!btn) return;
+
+    var editEl = null;
+    _.array(btn.parentElement.children).forEach(function (el) {
+      if (el.classList.contains('value') && (el.isContentEditable || el.contentEditable === 'true')) editEl = el;
+    })
+
+    if (!editEl) {
+      console.error('preventLinkEditBlur cannot find editEl');
+      return;
+    }
+
+    // clicking the 'test' button should not cause blur on the editing field
+    if (document.activeElement === editEl) ev.preventDefault();
+  }
+
+  /* save
+   *
+   *
+   *             ####    ##   #    # ######
+   *            #       #  #  #    # #
+   *             ####  #    # #    # #####
+   *                 # ###### #    # #
+   *            #    # #    #  #  #  #
+   *             ####  #    #   ##   ######
+   *
+   *
+   */
+
+  // don't save automatically after an error
+  lima.checkToPreventSaving = function checkToPreventSaving() {
+    return _.findEl('#metaanalysis.savingerror') || _.findEl('#metaanalysis.validationerror') || _.findEl('#metaanalysis.unsaved');
+  }
+
+  // the page should warn about leaving if it has unsaved changes
+  lima.checkToPreventLeaving = lima.checkToPreventSaving;
+
+  // don't save at all when a validation error is there
+  lima.checkToPreventForcedSaving = function checkToPreventForcedSaving() {
+    return _.findEl('#metaanalysis.validationerror') || _.findEl('#metaanalysis.unsaved');
+  }
+
+  var savePendingInterval = null;
+  var savePendingStart = 0;
+
+  lima.savePendingStarted = function savePendingStarted() {
+    _.addClass('#metaanalysis', 'savepending');
+
+    // every 60s update the screen to say something like "it's been minutes without saving, take a break!"
+    savePendingStart = Date.now();
+    savePendingInterval = setInterval(savePendingTick, 60000);
+  }
+
+  function savePendingTick() {
+    // todo put a message in the page somewhere - like "will be saved soon... (3m without saving)"
+    // console.log('save pending since ' + Math.round((Date.now()-savePendingStart)/1000) + 's');
+  }
+
+  lima.savePendingStopped = function savePendingStopped() {
+    _.removeClass('#metaanalysis', 'savepending');
+
+    var saveDelay = Math.round((Date.now() - savePendingStart)/1000);
+    if (saveDelay > lima.savePendingMax) {
+      lima.savePendingMax = saveDelay;
+      console.log('maximum time with a pending save: ' + lima.savePendingMax + 's');
+    }
+    savePendingStart = 0;
+    clearInterval(savePendingInterval);
+    savePendingInterval = null;
+  }
+
+  lima.saveStarted = function saveStarted() {
+    _.removeClass('#metaanalysis', 'savingerror');
+    _.addClass('#metaanalysis', 'saving');
+  }
+
+  lima.saveStopped = function saveStopped() {
+    _.removeClass('#metaanalysis', 'saving');
+    _.removeClass('#metaanalysis', 'editing-disabled-by-saving');
+  }
+
+  lima.saveError = function saveError() {
+    _.addClass('#metaanalysis', 'savingerror');
+    _.removeClass('#metaanalysis', 'saving');
+  }
+
+  function saveMetaanalysis() {
+    return lima.getGapiIDToken()
+      .then(function(idToken) {
+        return fetch(currentMetaanalysisUrl, {
+          method: 'POST',
+          headers: _.idTokenToFetchHeaders(idToken, {'Content-type': 'application/json'}),
+          body: JSON.stringify(currentMetaanalysis),
+        });
+      })
+      .then(_.fetchJson)
+      .then(updateMetaanalysisView)
+      .then(updatePageURL)
+      .catch(function(err) {
+        console.error('error saving metaanalysis');
+        if (err instanceof Response) err.text().then(function (t) {console.error(t)});
+        else console.error(err);
+        throw err;
+      })
+  }
+
+  /* changing cols
+   *
+   *
+   *    ####  #    #   ##   #    #  ####  # #    #  ####      ####   ####  #       ####
+   *   #    # #    #  #  #  ##   # #    # # ##   # #    #    #    # #    # #      #
+   *   #      ###### #    # # #  # #      # # #  # #         #      #    # #       ####
+   *   #      #    # ###### #  # # #  ### # #  # # #  ###    #      #    # #           #
+   *   #    # #    # #    # #   ## #    # # #   ## #    #    #    # #    # #      #    #
+   *    ####  #    # #    # #    #  ####  # #    #  ####      ####   ####  ######  ####
+   *
+   *
+   */
+
+  function moveColumn() {
+    // a click will pin the box,
+    // this timout makes sure the click gets processed first and then we do the moving
+    setTimeout(doMoveColumn, 0, this);
+  }
+
+  function doMoveColumn(el) {
+    var left = el.classList.contains('left');
+    var most = el.classList.contains('most');
+    var colId = _.findPrecedingEl(el, 'th').dataset.colid;
+    if (!colId) return; // we don't know what to move
+
+    var i = currentMetaanalysis.columnOrder.indexOf(colId);
+    if (i === -1) return console.error('column ' + colId + ' not found in newly regenerated order!');
+    _.moveInArray(currentMetaanalysis.columnOrder, i, left, most);
+    moveResultsAfterCharacteristics(currentMetaanalysis);
+    updateMetaanalysisView();
+    _.scheduleSave(currentMetaanalysis);
+  }
+
+  function moveResultsAfterCharacteristics(metaanalysis) {
+    // make sure result columns come after characteristics columns
+    var firstResult = 0;
+    for (var i = 0; i < metaanalysis.columnOrder.length; i++) {
+      if (lima.columns[metaanalysis.columnOrder[i]].type === 'characteristic') {
+        _.moveArrayElement(metaanalysis.columnOrder, i, firstResult);
+        firstResult++;
+      }
+    }
+  }
+
+  function changeColumnType(ev) {
+    var newTypeEl = ev.target;
+
+    // find the element with the class 'coltype' before the button
+    var coltypeEl = _.findPrecedingEl(newTypeEl, '.coltype');
+
+    if (!coltypeEl) {
+      console.warn('changeColumnType called on a button before which there is no .coltype');
+      return;
+    }
+
+    if (lima.columnTypes.indexOf(newTypeEl.dataset.newType) === -1) {
+      console.warn('changeColumnType called on an element with no (or unknown) dataset.newType');
+      return;
+    }
+
+    // if the oldtype is already the same as newtype, do nothing
+    if (coltypeEl.classList.contains(newTypeEl.dataset.newType)) return;
+
+    coltypeEl.dataset.newType = newTypeEl.dataset.newType;
+    if (coltypeEl.classList.contains('newcol')) {
+      setTimeout(doChangeColumnTypeConfirmOrCancel, 0, coltypeEl);
+    } else {
+      coltypeEl.classList.add('unsaved');
+      setUnsavedClass();
+    }
+  }
+
+  function changeColumnTypeConfirmOrCancel(ev) {
+    // a click will pin the box,
+    // this timout makes sure the click gets processed first and then we do the change
+    setTimeout(doChangeColumnTypeConfirmOrCancel, 0, ev.target);
+  }
+
+  function doChangeColumnTypeConfirmOrCancel(btn) {
+    // find the element with the class 'coltype' before the button
+    var coltypeEl = _.findPrecedingEl(btn, '.coltype');
+
+    if (!coltypeEl) {
+      console.warn('changeColumnTypeConfirmOrCancel called on a button before which there is no .coltype');
+      return;
+    }
+
+    var colId = _.findPrecedingEl(btn, 'th').dataset.colid;
+    var col = lima.columns[colId];
+    if (!col) {
+      console.warn('changeColumnTypeConfirmOrCancel couldn\'t find column for id ' + colId);
+      return;
+    }
+
+    if (lima.columnTypes.indexOf(coltypeEl.dataset.newType) === -1) {
+      console.warn('changeColumnTypeConfirmOrCancel called while coltype element has no (or unknown) dataset.newType');
+      return;
+    }
+
+    coltypeEl.classList.remove('unsaved');
+    setUnsavedClass();
+
+    if (!btn.classList.contains('cancel')) {
+      col.type = coltypeEl.dataset.newType;
+      moveResultsAfterCharacteristics(currentMetaanalysis);
+      updateMetaanalysisView();
+      _.scheduleSave(col);
+    }
+  }
+
+  function isHiddenCol(colid) {
+    return currentMetaanalysis.hiddenCols.indexOf(colid) !== -1;
+  }
+
+  function addUnhideButton(colNode) {
+    colNode.classList.add('lastcolumnhidden');
+    _.addEventListener(colNode, '.unhide', 'click', unhideColumns);
+  }
+
+  // This function takes a colid to start counting back from in metaanalysis.columnOrder.
+  // It will unhide columns until a non-hidden column is found.
+  // e.g. ['hidden0', 'col1', 'hidden2', 'hidden3', 'col4'].
+  // Passing col1 will unhide hidden0, and passing col4 will unhide 2 and 3.
+  function unhideColumns (e) {
+    var colId = _.findPrecedingEl(e.target, 'th').dataset.colid;
+
+    var index;
+    // If we don't have a colId, it's the 'add column' button, so start at the end.
+    if (!colId) {
+      index = currentMetaanalysis.columnOrder.length-1;
+    } else {
+      index = currentMetaanalysis.columnOrder.indexOf(colId) - 1;
+    }
+
+    for (var i = index; i >= 0; i--) {
+      if (isHiddenCol(currentMetaanalysis.columnOrder[i])) {
+        _.removeFromArray(currentMetaanalysis.hiddenCols, currentMetaanalysis.columnOrder[i]);
+      } else {
+        break;
+      }
+    }
+
+    updateMetaanalysisView();
+    _.scheduleSave(currentMetaanalysis);
+  }
+
+  /* DOM updates
+   *
+   *
+   *         ######  ####### #     #
+   *         #     # #     # ##   ##    #    # #####  #####    ##   ##### ######  ####
+   *         #     # #     # # # # #    #    # #    # #    #  #  #    #   #      #
+   *         #     # #     # #  #  #    #    # #    # #    # #    #   #   #####   ####
+   *         #     # #     # #     #    #    # #####  #    # ######   #   #           #
+   *         #     # #     # #     #    #    # #      #    # #    #   #   #      #    #
+   *         ######  ####### #     #     ####  #      #####  #    #   #   ######  ####
+   *
+   *
+   */
+  var identity = null; // special value to use as validatorSanitizer
+
+  function addOnInputUpdater(root, selector, property, validatorSanitizer, target, targetProp, onchange) {
+    if (!(root instanceof Node)) {
+      onchange = targetProp;
+      targetProp = target;
+      target = validatorSanitizer;
+      validatorSanitizer = property;
+      property = selector;
+      selector = root;
+      root = document;
+    }
+
+    _.findEls(root, selector).forEach(function (el) {
+      if (el.classList.contains('editing') || el.isContentEditable || el.contentEditable === 'true') {
+        el.addEventListener('keydown', _.deferScheduledSave);
+        el.oninput = function () {
+          var value = el[property];
+          if (typeof value === 'string' && value.trim() === '') value = '';
+          try {
+            if (validatorSanitizer) value = validatorSanitizer(value, el, property);
+          } catch (err) {
+            el.classList.add('validationerror');
+            el.dataset.validationmessage = err.message || err;
+            setValidationErrorClass();
+            _.cancelScheduledSave(target);
+            return;
+          }
+          el.classList.remove('validationerror');
+          setValidationErrorClass();
+          assignDeepValue(target, targetProp, value);
+          if (onchange) onchange(el);
+          _.scheduleSave(target);
+        };
+      } else {
+        el.oninput = null;
+      }
+    });
+  }
+
+  function addConfirmedUpdater(root, selector, confirmselector, cancelselector, property, validatorSanitizer, target, targetProp, deleteFunction, onconfirm) {
+    if (!(root instanceof Node)) {
+      onconfirm = deleteFunction;
+      deleteFunction = targetProp;
+      targetProp = target;
+      target = validatorSanitizer;
+      validatorSanitizer = property;
+      property = cancelselector;
+      cancelselector = confirmselector;
+      confirmselector = selector;
+      selector = root;
+      root = document;
+    }
+
+    var editingEl = _.findEls(root, selector);
+    var confirmEl = _.findEls(root, confirmselector);
+    var cancelEls = _.findEls(root, cancelselector);
+
+    if (editingEl.length > 1 || confirmEl.length > 1) {
+      console.error('multiple title editing elements or confirmation buttons found, user interface may not work');
+      throw _.apiFail();
+    }
+
+    editingEl = editingEl[0];
+    confirmEl = confirmEl[0];
+
+    if (!editingEl || !confirmEl ||
+        !(editingEl.classList.contains('editing') || editingEl.isContentEditable || editingEl.contentEditable === 'true')) {
+      console.error('editing element or confirmation button not found, user interface may not work');
+      throw _.apiFail();
+    }
+
+    editingEl.oninput = editingEl.onblur = function (ev) {
+      var value = editingEl[property];
+      if (typeof value === 'string' && value.trim() === '') value = '';
+      try {
+        if (validatorSanitizer) value = validatorSanitizer(value, editingEl, property);
+      } catch (err) {
+        editingEl.classList.add('validationerror');
+        editingEl.dataset.validationmessage = err && err.message || err || '';
+        if (ev) setValidationErrorClass();
+        confirmEl.disabled = true;
+        _.cancelScheduledSave(target);
+        return;
+      }
+      var origValue = getDeepValue(target, targetProp) || '';
+      if (value !== origValue) {
+        confirmEl.disabled = false;
+        editingEl.classList.add('unsaved');
+      } else {
+        confirmEl.disabled = true;
+        editingEl.classList.remove('unsaved');
+      }
+      editingEl.classList.remove('validationerror');
+
+      // the following calls are expensive and unnecessary when building the dom
+      // but when building the dom, we don't have `ev`
+      if (ev) {
+        setValidationErrorClass();
+        setUnsavedClass();
+      }
+    };
+
+    editingEl.oninput();
+
+    function cancel() {
+      editingEl[property] = getDeepValue(target, targetProp);
+      editingEl.oninput();
+    }
+
+    editingEl.onkeydown = function (ev) {
+      if (ev.keyCode === 27) {
+        if (editingEl.classList.contains('new') && deleteFunction) {
+          editingEl.classList.remove('unsaved');
+          editingEl.classList.remove('validationerror');
+          setUnsavedClass();
+          setValidationErrorClass();
+          deleteFunction();
+        } else {
+          cancel();
+          ev.target.blur();
+        }
+        ev.preventDefault();
+      }
+      else if (ev.keyCode == 13 && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        ev.preventDefault();
+        ev.target.blur();
+        confirmEl.onclick();
+      }
+    }
+
+    confirmEl.onclick = function () {
+      var value = editingEl[property];
+      if (typeof value === 'string' && value.trim() === '') value = '';
+      try {
+        if (validatorSanitizer) value = validatorSanitizer(value, editingEl, property);
+      } catch (err) {
+        // any validation reporting is done above in the handler on editingEl
+        return;
+      }
+      assignDeepValue(target, targetProp, value);
+      confirmEl.disabled = true;
+      editingEl.classList.remove('unsaved');
+      setUnsavedClass();
+      updateMetaanalysisView();
+      _.scheduleSave(target);
+      if (onconfirm) onconfirm();
+    };
+
+    cancelEls.forEach(function (cancelEl) {
+      cancelEl.onclick = cancel;
+    })
+  }
+
+  function assignDeepValue(target, targetProp, value) {
+    if (Array.isArray(targetProp)) {
+      // copy targetProp so we can manipulate it
+      targetProp = targetProp.slice();
+      while (targetProp.length > 1) {
+        var prop = targetProp.shift();
+        if (!(prop in target) || target[prop] == null) {
+          if (Number.isInteger(targetProp[0])) target[prop] = [];
+          else target[prop] = {};
+        }
+        target = target[prop];
+      }
+      targetProp = targetProp[0];
+    }
+
+    target[targetProp] = value;
+    return value;
+  }
+
+  function getDeepValue(target, targetProp, addDefaultValue) {
+    if (Array.isArray(targetProp)) {
+      targetProp = [].concat(targetProp); // duplicate the array so we don't affect the passed value
+    } else {
+      targetProp = [targetProp];
+    }
+
+    while (targetProp.length > 0) {
+      var prop = targetProp.shift();
+      if (!(prop in target) || target[prop] == null) {
+        if (addDefaultValue != null) {
+          if (targetProp.length == 0) target[prop] = addDefaultValue;
+          else if (Number.isInteger(targetProp[0])) target[prop] = [];
+          else target[prop] = {};
+        } else {
+          return undefined;
+        }
+      }
+      target = target[prop];
+    }
+
+    return target;
+  }
+
+  function setValidationErrorClass() {
+    if (_.findEl('#metaanalysis .validationerror')) _.addClass('#metaanalysis', 'validationerror');
+    else _.removeClass('#metaanalysis', 'validationerror');
+  }
+
+  function setUnsavedClass() {
+    if (_.findEl('#metaanalysis .unsaved')) _.addClass('#metaanalysis', 'unsaved');
+    else _.removeClass('#metaanalysis', 'unsaved');
+  }
+
+
+  /* popup boxes
+   *
+   *
+   *            #####   ####  #####  #    # #####     #####   ####  #    # ######  ####
+   *            #    # #    # #    # #    # #    #    #    # #    #  #  #  #      #
+   *            #    # #    # #    # #    # #    #    #####  #    #   ##   #####   ####
+   *            #####  #    # #####  #    # #####     #    # #    #   ##   #           #
+   *            #      #    # #      #    # #         #    # #    #  #  #  #      #    #
+   *            #       ####  #       ####  #         #####   ####  #    # ######  ####
+   *
+   *
+   */
+  // box can be one of these types of values:
+  // - the popup box element itself
+  // - or an element inside the box
+  // - or an element outside the box (then we use the first box we find inside)
+  // - or an event whose target is such an element
+  // - or a box ID by which we can find the element
+  function findPopupBox(box) {
+    var origBox = box;
+    if (box instanceof Event) box = box.target;
+    if (box instanceof Node) {
+      // find the popupbox, first inside el, then outside it
+      if (!box.classList.contains('popupbox')) {
+        box = _.findEl(box, '.popupbox') || box;
+        while (box && !box.classList.contains('popupbox')) box = box.nextElementSibling || box.parentElement;
+      }
+    } else {
+      box = getPopupBoxEl(box);
+    }
+    if (!box && !(origBox instanceof Element)) console.warn('cannot find element for popup box ' + origBox);
+    return box;
+  }
+
+  function findPopupBoxTrigger(el) {
+    var trigger = el;
+    while (trigger && !trigger.classList.contains('popupboxtrigger')) trigger = trigger.parentElement;
+    return trigger;
+  }
+
+  var pinnedBox = null;
+  function pinPopupBox(el) {
+    var box = findPopupBox(el);
+
+    if (box) {
+      if (pinnedBox !== box.dataset.boxid) unpinPopupBox();
+
+      pinnedBox = box.dataset.boxid;
+      document.body.classList.add('boxpinned');
+      box.classList.add('pinned');
+
+      // find nearest parent-or-self that is '.popupboxtrigger' so it can be raised above others when pinned
+      var trigger = findPopupBoxTrigger(box);
+      if (trigger) trigger.classList.add('pinned');
+    }
+
+    return box;
+  }
+
+  function unpinPopupBox() {
+    if (pinnedBox) {
+      var pinned = getPopupBoxEl();
+      if (pinned) {
+        pinned.classList.remove('pinned');
+
+        var trigger = pinned;
+        while (trigger && !trigger.classList.contains('popupboxtrigger')) trigger = trigger.parentElement;
+        if (trigger) trigger.classList.remove('pinned');
+      }
+    }
+    pinnedBox = null;
+    document.body.classList.remove('boxpinned');
+  }
+
+  // returns the popup box element for the popup box with the specified ID,
+  // or if no ID is given, the currently pinned popup box element
+  function getPopupBoxEl(id) {
+    if (!id) id = pinnedBox;
+    return _.findEl('[data-boxid="' + id + '"]')
+  }
+
+  function setupPopupBoxPinning(el, selector, localid) {
+    _.findEls(el, selector).forEach(function (box) {
+      var oldId = box.dataset.boxid;
+      if (box.dataset.boxtype) box.dataset.boxid = box.dataset.boxtype + "@" + localid;
+      // in case a new column was saved and got a new ID, and the box was previously pinned, update the pinned box's ID here
+      if (oldId && pinnedBox === oldId) {
+        pinnedBox = box.dataset.boxid;
+      }
+      box.classList.remove('pinned');
+
+      var trigger = box;
+      while (trigger && !trigger.classList.contains('popupboxtrigger')) trigger = trigger.parentElement;
+      if (trigger) trigger.classList.remove('pinned');
+    })
+  }
+
+
+  /* event listeners
+   *
+   *
+   *       ###### #    # ###### #    # #####    #      #  ####  ##### ###### #    # ###### #####   ####
+   *       #      #    # #      ##   #   #      #      # #        #   #      ##   # #      #    # #
+   *       #####  #    # #####  # #  #   #      #      #  ####    #   #####  # #  # #####  #    #  ####
+   *       #      #    # #      #  # #   #      #      #      #   #   #      #  # # #      #####       #
+   *       #       #  #  #      #   ##   #      #      # #    #   #   #      #   ## #      #   #  #    #
+   *       ######   ##   ###### #    #   #      ###### #  ####    #   ###### #    # ###### #    #  ####
+   *
+   *
+   */
+  document.addEventListener('keydown', blockWhenSaving, true);
+  document.addEventListener('keydown', dismissOrBlurOnEscape);
+  document.addEventListener('click', popupOnClick);
+
+  // a keystroke when saving will trigger the "saving..." spinner, and otherwise be ignored
+  function blockWhenSaving(ev) {
+    if (_.isSaving()) {
+      ev.stopImmediatePropagation();
+      ev.stopPropagation();
+      ev.preventDefault();
+      _.addClass('#metaanalysis', 'editing-disabled-by-saving');
+    }
+  }
+
+  // dismiss pinned popup boxes with Escape or with a click outside them
+  function dismissOrBlurOnEscape(ev) {
+    if (ev.keyCode === 27) {
+      if (ev.target === document.activeElement && document.activeElement !== document.body && document.activeElement.nodeName !== 'BUTTON') {
+        ev.target.blur();
+      } else if (pinnedBox) {
+        dismissAddExperimentColumn();
+        unpinPopupBox();
+      }
+    }
+  }
+
+  function popupOnClick(ev) {
+    var el = ev.target;
+    if (el.classList.contains('notunpin')) return;
+    // check if we've clicked on the 'pin' button or otherwise in a popupboxtrigger
+    while (el && !el.classList.contains('pin') && !el.classList.contains('popupboxtrigger')) el = el.parentElement;
+    if (!el || el.classList.contains('pin') && pinnedBox) {
+      unpinPopupBox();
+      dismissAddExperimentColumn();
+    }
+    else pinPopupBox(el);
+  }
+
+  // oneline input fields get blurred on enter (for Excel-like editing)
+  function blurOnEnter(ev) {
+    if (ev.keyCode == 13 && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      ev.preventDefault();
+      ev.target.blur();
+    }
+  }
+
+  function focusAnotherElementOnClick(ev) {
+    var el = ev.currentTarget;
+
+    // focus the right element - trying to find it inside the event target element, or progressively inside its ancestor elements
+    var focusingSelector = el.dataset.focuses;
+    var toFocus = null;
+    while (el && !(toFocus = _.findEl(el, focusingSelector))) el = el.parentElement;
+
+    focusElement(toFocus);
+    _.putCursorAtEnd(toFocus);
+  }
+
+  function focusFirstUnsaved() {
+    return focusElement(_.findEl('#metaanalysis .unsaved'));
+  }
+
+  function focusFirstValidationError() {
+    return focusElement(_.findEl('#metaanalysis .validationerror'));
+  }
+
+  function focusElement(el) {
+    if (el) {
+      // if the element is inside a popup box, pin that box so the element is visible
+      pinPopupBox(el);
+      el.focus();
+      return el;
+    }
+  }
+
+  // a workaround for strange chrome behaviour
+  function blurAndFocus(ev) {
+    ev.target.blur();
+    ev.target.focus();
+  }
+
+  // moving between cells (esp. when editing) should work like excel: tab and enter, maybe with shift
+  function moveBetweenDataCells(e) {
+    var currentCell = getCurrentlyFocusedDataCell();
+    if (!currentCell) return;
+
+    if (e.keyCode == 9){ // tab
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) {
+        changeCurrentDataCell(currentCell, 'left');
+      } else {
+        changeCurrentDataCell(currentCell, 'right');
+      }
+    }
+    if (e.keyCode == 13) { // enter
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) {
+        changeCurrentDataCell(currentCell, 'up');
+      } else {
+        changeCurrentDataCell(currentCell, 'down');
+      }
+    }
+  }
+
+  function getCurrentlyFocusedDataCell() {
+    // the currently focused cell either has the popup box pinned, or it has the editing field focused
+    var focusedEl = document.activeElement;
+    if (focusedEl && _.findPrecedingEl(focusedEl, '.popupbox')) return null;
+
+    if (!focusedEl ||
+        !focusedEl.classList.contains('value') ||
+        !focusedEl.classList.contains('editing')) {
+      focusedEl = getPopupBoxEl();
+    }
+
+    var currentTD = _.findPrecedingEl(focusedEl, 'td');
+
+    // check that we are in a table cell in the experiments table
+    if (currentTD && _.findPrecedingEl(currentTD, 'table.experiments')) return currentTD;
+
+    return null;
+  }
+
+
+  function changeCurrentDataCell(currentCell, direction) {
+    if (!currentCell) return;
+
+    var row;
+    var index;
+    switch (direction) {
+    case 'up':
+      row = currentCell.parentNode.previousElementSibling;
+      index = currentCell.cellIndex;
+      break;
+
+    case 'down':
+      row = currentCell.parentNode.nextElementSibling;
+      index = currentCell.cellIndex;
+      break;
+
+    case 'left':
+      row = currentCell.parentNode;
+      index = currentCell.cellIndex-1;
+      break;
+
+    case 'right':
+      row = currentCell.parentNode;
+      index = currentCell.cellIndex+1;
+      break;
+    }
+    focusDataCell(row, index);
+  }
+
+  function focusDataCell(rowEl, cellIndex) {
+    var cell = rowEl.cells[cellIndex];
+    if (cell) {
+      var toFocus = _.findEl(cell, '.value.editing');
+      if (toFocus) {
+        if (document.activeElement) document.activeElement.blur();
+        focusElement(toFocus);
+        _.putCursorAtEnd(document.activeElement);
+      }
+    }
+  }
+
+  /* api
+   *
+   *
+   *                ##   #####  #
+   *               #  #  #    # #
+   *              #    # #    # #
+   *              ###### #####  #
+   *              #    # #      #
+   *              #    # #      #
+   *
+   *
+   */
+
+  // api to other scripts
+  lima.extractMetaanalysisTitleFromUrl = extractMetaanalysisTitleFromUrl;
+  lima.requestAndFillMetaanalysisList = requestAndFillMetaanalysisList;
+  lima.requestAndFillMetaanalysis = requestAndFillMetaanalysis;
+
+  lima.updateView = updateMetaanalysisView;
+  lima.updateAfterColumnSave = updateAfterColumnSave;
+
+  // for testing
+  lima.pinPopupBox = pinPopupBox;
+  lima.unpinPopupBox = unpinPopupBox;
+  lima.updateMetaanalysisView = updateMetaanalysisView;
+  lima.assignDeepValue = assignDeepValue;
+  lima.getDeepValue = getDeepValue;
+  lima.getAllTitles = function(){return allTitles;};
+  lima.getCurrentMetaanalysis = function(){return currentMetaanalysis;};
+  lima.savePendingMax = 0;
+
+
+  window._ = _;
 
 })(window, document);

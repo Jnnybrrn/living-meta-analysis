@@ -3,10 +3,6 @@
   var lima = window.lima;
   var _ = lima._;
 
-  lima.getPapers = function() {
-    /* TODO: Finish me */
-  }
-
   function extractPaperTitleFromUrl() {
     // the path of a page for a paper will be '/email/title/*',
     // so extract the 'title' portion here:
@@ -1188,7 +1184,7 @@
 
   function checkTitleUnique(title) {
     if (title === '') throw null; // no message necessary
-    if (title === 'new') throw '"new" is a reserved title';
+    if (title === 'paper' || title === 'metaanalysis') throw '"paper/metaanalysis" are reserved titles';
     if (!title.match(/^[a-zA-Z0-9.-]+$/)) throw 'paper short name cannot contain spaces or special characters';
     loadAllTitles();
     if (title !== currentPaperOrigTitle && allTitles.indexOf(title) !== -1) {
