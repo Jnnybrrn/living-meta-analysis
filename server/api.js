@@ -44,6 +44,7 @@ api.get(`/profile/:email(${EMAIL_ADDRESS_RE})`, REGISTER_USER, returnUserProfile
 function apiPaperURL(email, title) { return `/api/papers/${email}/${title}`; }
 
 api.get('/papers/titles', listPaperTitles);
+api.get('/papers', listPapers);
 
 api.get(`/papers/:email(${EMAIL_ADDRESS_RE})`,
         REGISTER_USER, listPapersForUser);
@@ -177,6 +178,18 @@ module.exports.checkUserExists = function (req, res, next) {
  *
  *
  */
+function listPapers(req, res, next) {
+  storage.listPapers()
+  .then((papers) => {
+    const retval = {};
+    for (const key of Object.keys(papers)) {
+      retval[key] = extractPaperForSending(papers[key]);
+    }
+    res.json(retval);
+  })
+  .catch(() => next(new InternalError('cannot get papers, why?!?')));
+}
+
 module.exports.getKindForTitle = function getKindForTitle(email, title) {
   return new Promise((resolve, reject) => {
     storage.getMetaanalysisByTitle(email, title)

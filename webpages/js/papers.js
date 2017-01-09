@@ -3,6 +3,44 @@
   var lima = window.lima;
   var _ = lima._;
 
+  var papersPromise;
+  var papersNextUpdate = 0;
+
+  lima.getPapers = function() {
+    var curtime = Date.now();
+    if (!papersPromise || papersNextUpdate < curtime) {
+      papersNextUpdate = curtime + 5 * 60 * 1000; // update paper titles no less than 5 minutes from now
+
+      papersPromise = lima.getGapiIDToken()
+      .then(function (idToken) {
+        return fetch('/api/papers', _.idTokenToFetchOptions(idToken));
+      })
+      .then(_.fetchJson)
+      .then(storePapers)
+      .catch(function (err) {
+        console.error("problem getting columns");
+        console.error(err);
+        throw _.apiFail();
+      });
+    }
+
+    return columnsPromise;
+  }
+
+  function storePapers(papers){
+    lima.papers = {};
+    Object.keys(papers).forEach(function (id) {
+      storePaper(papers[id]);
+    });
+    return lima.papers;
+  }
+
+  function storePaper(paper) {
+    if (!(paper instanceof Paper)) paper = Object.assign(new Paper(), paper);
+    lima.papers[paper.id] = paper;
+    return paper;
+  }
+
   function extractPaperTitleFromUrl() {
     // the path of a page for a paper will be '/email/title/*',
     // so extract the 'title' portion here:
