@@ -79,10 +79,10 @@ function checkForDisallowedChanges(current, original, columns) {
     if (!TITLE_REXP.test(current.title)) {
       throw new ValidationError('title cannot contain spaces or special characters');
     }
-    if (currentTitles.indexOf(current.title) !== -1) {
+    if (paperTitles.indexOf(current.title) !== -1 || metaanalysisTitles.indexOf(current.title) !== -1) {
       throw new ValidationError('title must be unique');
     }
-    if (current.title === 'current' || current.title  === 'metaanalysis') {
+    if (current.title === 'paper' || current.title  === 'metaanalysis') {
       throw new ValidationError('cannot use a reserved name');
     }
   }
@@ -646,7 +646,7 @@ module.exports.getMetaanalysisByTitle = (email, title, time) => {
   .then((metaanalyses) => {
     for (const ma of metaanalyses) {
       if (ma.title === title) {
-        return p;
+        return ma;
       }
     }
     return Promise.reject();
@@ -678,7 +678,7 @@ module.exports.saveMetaanalysis = (metaanalysis, email, origTitle) => {
   //   (must allow editing the last comment by this user in case in the meantime another user
   //    has added another comment)
 
-  let doAddMetanalysisToCache;
+  let doAddMetaanalysisToCache;
 
   // the following serializes this save after the previous one, whether it fails or succeeds
   // this way we can't have two concurrent saves create metaanalyses with the same title
