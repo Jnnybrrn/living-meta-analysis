@@ -239,6 +239,7 @@
   var rebuildingDOM = false;
 
   function fillPaper(paper) {
+  console.log(currentPaper);
     // cleanup
     var oldPaperEl = _.byId('paper');
     rebuildingDOM = true;
@@ -326,7 +327,6 @@
     }
     return doi;
   }
-
 
   /* editTags
    *
@@ -2065,7 +2065,6 @@
   lima.getPaperTitles = function(){return paperTitles;};
   lima.getCurrentPaper = function(){return currentPaper;};
   lima.savePendingMax = 0;
-
 
   window._ = _;
 

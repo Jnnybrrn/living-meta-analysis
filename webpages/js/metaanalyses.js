@@ -89,7 +89,7 @@ function requestAndFillMetaanalysis() {
   _.fillEls('#metaanalysis .title', title);
 
   // lima.getPapers(); // TODO: not yet implemented
-
+  
   lima.getColumns() // todo getColumns could run in parallel with everything before updateMetaanalysisView
   .then(lima.getGapiIDToken)
   .then(function (idToken) {
@@ -147,7 +147,7 @@ function requestAndFillMetaanalysis() {
       metaanalysis = Object.assign(new Metaanalysis(), metaanalysis);
 
       // TODO: Initialise more empty "things" here.. e.g. metaanalysis.papers = [];
-      if (!Array.isArray(metaanalysis.experiments)) metaanalysis.experiments = [];
+      if (!Array.isArray(metaanalysis.paperOrder)) metaanalysis.paperOrder = [];
       if (!Array.isArray(metaanalysis.columnOrder)) metaanalysis.columnOrder = [];
       if (!Array.isArray(metaanalysis.hiddenCols)) metaanalysis.hiddenCols = [];
 
@@ -186,6 +186,13 @@ function requestAndFillMetaanalysis() {
     var metaanalysisTemplate = _.byId('metaanalysis-template');
     var metaanalysisEl = _.cloneTemplate(metaanalysisTemplate).children[0];
     metaanalysisTemplate.parentElement.insertBefore(metaanalysisEl, metaanalysisTemplate);
+
+    metaanalysis.paperOrder = ["/id/p/1476981700845", "/id/p/1476981700846"]
+    var paper1 = {"id":"/id/p/1484856777106","title":"Foo","enteredBy":"up661670@myport.ac.uk","ctime":1484856777106,"mtime":1484856913557,"tags":[],"apiurl":"/api/papers/up661670@myport.ac.uk/Foo","experiments":[{"title":"1","data":{"/id/col/1484856829164":{"value":"1","enteredBy":"up661670@myport.ac.uk","ctime":1484856913558},"/id/col/1484856845017":{"value":"4","enteredBy":"up661670@myport.ac.uk","ctime":1484856913559}},"enteredBy":"up661670@myport.ac.uk","ctime":1484856777108},{"title":"2","data":{"/id/col/1484856829164":{"value":"2","enteredBy":"up661670@myport.ac.uk","ctime":1484856913560},"/id/col/1484856845017":{"value":"5","enteredBy":"up661670@myport.ac.uk","ctime":1484856913561}},"enteredBy":"up661670@myport.ac.uk","ctime":1484856777109},{"title":"3","data":{"/id/col/1484856829164":{"value":"3","enteredBy":"up661670@myport.ac.uk","ctime":1484856913562},"/id/col/1484856845017":{"value":"6","enteredBy":"up661670@myport.ac.uk","ctime":1484856913563}},"enteredBy":"up661670@myport.ac.uk","ctime":1484856777110}],"columnOrder":["/id/col/1484856829164","/id/col/1484856861624","/id/col/1484856845017"],"hiddenCols":[]};
+    var paper2 = {"id":"/id/p/1484856777107","title":"Bar","enteredBy":"up661670@myport.ac.uk","ctime":1484856777150,"mtime":1484856913557,"tags":[],"apiurl":"/api/papers/up661670@myport.ac.uk/Bar","experiments":[{"title":"4","data":{"/id/col/1484858127655":{"value":"7","enteredBy":"up661670@myport.ac.uk","ctime":1484856913558},"/id/col/1484856845017":{"value":"8","enteredBy":"up661670@myport.ac.uk","ctime":1484856913559}},"enteredBy":"up661670@myport.ac.uk","ctime":1484856777108},{"title":"5","data":{"/id/col/1484858127655":{"value":"9","enteredBy":"up661670@myport.ac.uk","ctime":1484856913560},"/id/col/1484856845017":{"value":"10","enteredBy":"up661670@myport.ac.uk","ctime":1484856913561}},"enteredBy":"up661670@myport.ac.uk","ctime":1484856777109},{"title":"6","data":{"/id/col/1484858127655":{"value":"11","enteredBy":"up661670@myport.ac.uk","ctime":1484856913562},"/id/col/1484856845017":{"value":"12","enteredBy":"up661670@myport.ac.uk","ctime":1484856913563}},"enteredBy":"up661670@myport.ac.uk","ctime":1484856777110}],"columnOrder":["/id/col/1484856829164","/id/col/1484858127655","/id/col/1484856845017"],"hiddenCols":[]};
+    metaanalysis.papers = [paper1, paper2];
+    // metaanalysis.paperOrder = [];
+    // metaanalysis.papers = [];
 
     fillTags(metaanalysisEl, metaanalysis);
     fillMetaanalysisExperimentTable(metaanalysis);
@@ -370,14 +377,28 @@ function requestAndFillMetaanalysis() {
    *
    */
   function fillMetaanalysisExperimentTable(metaanalysis) {
-    var experiments = metaanalysis.experiments;
+    var papers = metaanalysis.papers;
 
-    // hide the empty experiment data table if the user can't edit it
-    if (!experiments.length) {
+    // hide the empty papers data table if the user can't edit it
+    if (!papers.length) {
       _.addClass('#metaanalysis', 'no-data');
     }
 
     var table = _.cloneTemplate('experiments-table-template');
+
+    // Get all columns used across all papers, for now. Concat.
+    function getMetaColumnOrder(metaanalysis) {
+      metaanalysis.papers.forEach(function (paper) {
+        paper.columnOrder.forEach(function (column) {
+          if (metaanalysis.columnOrder.indexOf(column) === -1) {
+            metaanalysis.columnOrder.push(column);
+          }
+        });
+      });
+    }
+
+    getMetaColumnOrder(metaanalysis);
+    moveResultsAfterCharacteristics(metaanalysis);
 
     /* column headings
      *
@@ -538,91 +559,95 @@ function requestAndFillMetaanalysis() {
     var tableBodyNode = _.findEl(table, 'tbody');
     var addRowNode = _.findEl(table, 'tbody > tr.add');
 
-    experiments.forEach(function (experiment, expIndex) {
-      var tr = _.cloneTemplate('experiment-row-template').children[0];
-      tableBodyNode.insertBefore(tr, addRowNode);
+    papers.forEach(function(paper, papIndex) {
+      var paperIndex = papIndex;
+      paper.experiments.forEach(function (experiment, expIndex) {
+        var tr = _.cloneTemplate('experiment-row-template').children[0];
+        tableBodyNode.insertBefore(tr, addRowNode);
 
-      _.fillEls(tr, '.exptitle', experiment.title);
-      _.fillEls(tr, '.expdescription', experiment.description);
+        _.fillEls(tr, '.exptitle', paper.title+'-'+experiment.title);
+        _.fillEls(tr, '.popupbox .exptitle', experiment.title);
+        _.fillEls(tr, '.expdescription', experiment.description);
 
-      if (!experiment.title) {
-        _.addClass(tr, '.exptitle.editing', 'new');
-        _.fillEls(tr, '.exptitle + .exptitlerename', 'confirm');
-      } else {
-        _.fillEls(tr, '.exptitle + .exptitlerename', 'rename');
-      }
-
-      addOnInputUpdater(tr, ".expdescription.editing", 'textContent', identity, metaanalysis, ['experiments', expIndex, 'description']);
-
-      _.setDataProps(tr, '.exptitle.editing', 'origTitle', experiment.title);
-      addConfirmedUpdater(tr, '.exptitle.editing', '.exptitle + .exptitlerename', null, 'textContent', checkExperimentTitleUnique, metaanalysis, ['experiments', expIndex, 'title'], deleteNewExperiment);
-
-      setupPopupBoxPinning(tr, '.fullrowinfo.popupbox', expIndex);
-
-      metaanalysis.columnOrder.forEach(function (colId) {
-        // early return - ignore this column
-        if (isHiddenCol(colId)) return;
-
-        var col = lima.columns[colId];
-        var val = null;
-        var td = _.cloneTemplate('experiment-datum-template').children[0];
-        tr.appendChild(td);
-
-        if (!col.formula) {
-          // not a computed column
-          if (experiment.data && experiment.data[colId]) {
-            val = experiment.data[colId];
-          }
-
-          if (!val || val.value == null) {
-            td.classList.add('empty');
-          } else {
-            _.fillEls(td, '.value', val.value);
-          }
-
-          addOnInputUpdater(td, '.value', 'textContent', identity, metaanalysis, ['experiments', expIndex, 'data', colId, 'value'], recalculateComputedData);
-
-          var user = lima.getAuthenticatedUserEmail();
-          _.fillEls (td, '.valenteredby', val && val.enteredBy || user);
-          _.setProps(td, '.valenteredby', 'href', '/' + (val && val.enteredBy || user) + '/');
-          _.fillEls (td, '.valctime', _.formatDateTime(val && val.ctime || Date.now()));
-
+        if (!experiment.title) {
+          _.addClass(tr, '.exptitle.editing', 'new');
+          _.fillEls(tr, '.exptitle + .exptitlerename', 'confirm');
         } else {
-          // computed column
-          td.classList.add('computed');
-          // todo computed from x and y
+          _.fillEls(tr, '.exptitle + .exptitlerename', 'rename');
+        }
 
-          addComputedDatumSetter(function() {
-            var val = getDatumValue(colId, expIndex);
+        addOnInputUpdater(tr, ".expdescription.editing", 'textContent', identity, metaanalysis, ['experiments', expIndex, 'description']);
 
-            // handle bad values like Excel
-            if (val == null) {
-              val = '';
-              td.classList.add('empty');
-            } else if (typeof val == 'number' && isNaN(val)) {
-              val = '#VALUE!';
-              td.classList.add('empty');
-            } else {
-              td.classList.remove('empty');
+        _.setDataProps(tr, '.exptitle.editing', 'origTitle', experiment.title);
+        addConfirmedUpdater(tr, '.exptitle.editing', '.exptitle + .exptitlerename', null, 'textContent', checkExperimentTitleUnique, metaanalysis, ['papers', paperIndex, 'experiments', expIndex, 'title'], deleteNewExperiment);
+
+        setupPopupBoxPinning(tr, '.fullrowinfo.popupbox', expIndex);
+
+        metaanalysis.columnOrder.forEach(function (colId) {
+          // early return - ignore this column
+          if (isHiddenCol(colId)) return;
+
+          var col = lima.columns[colId];
+          var val = null;
+          var td = _.cloneTemplate('experiment-datum-template').children[0];
+          tr.appendChild(td);
+
+          if (!col.formula) {
+            // not a computed column
+            if (experiment.data && experiment.data[colId]) {
+              val = experiment.data[colId];
             }
 
-            // only show three significant digits for numbers
-            if (typeof val == 'number') val = val.toPrecision(3);
+            if (!val || val.value == null) {
+              td.classList.add('empty');
+            } else {
+              _.fillEls(td, '.value', val.value);
+            }
 
-            _.fillEls(td, '.value', val);
-          });
-        }
+            addOnInputUpdater(td, '.value', 'textContent', identity, metaanalysis, ['experiments', expIndex, 'data', colId, 'value'], recalculateComputedData);
 
-        td.classList.add(col.type);
+            var user = lima.getAuthenticatedUserEmail();
+            _.fillEls (td, '.valenteredby', val && val.enteredBy || user);
+            _.setProps(td, '.valenteredby', 'href', '/' + (val && val.enteredBy || user) + '/');
+            _.fillEls (td, '.valctime', _.formatDateTime(val && val.ctime || Date.now()));
 
-        if (col.new) {
-          td.classList.add('newcol');
-        }
+          } else {
+            // computed column
+            td.classList.add('computed');
+            // todo computed from x and y
 
-        setupPopupBoxPinning(td, '.datum.popupbox', expIndex + '$' + colId);
+            addComputedDatumSetter(function() {
+              var val = getDatumValue(colId, expIndex, paperIndex);
 
-        // populate comments
-        fillComments('comment-template', td, '.commentcount', '.datum.popupbox main', metaanalysis, ['experiments', expIndex, 'data', colId, 'comments']);
+              // handle bad values like Excel
+              if (val == null) {
+                val = '';
+                td.classList.add('empty');
+              } else if (typeof val == 'number' && isNaN(val)) {
+                val = '#VALUE!';
+                td.classList.add('empty');
+              } else {
+                td.classList.remove('empty');
+              }
+
+              // only show three significant digits for numbers
+              if (typeof val == 'number') val = val.toPrecision(3);
+
+              _.fillEls(td, '.value', val);
+            });
+          }
+
+          td.classList.add(col.type);
+
+          if (col.new) {
+            td.classList.add('newcol');
+          }
+
+          setupPopupBoxPinning(td, '.datum.popupbox', expIndex + '$' + colId);
+
+          // populate comments
+          fillComments('comment-template', td, '.commentcount', '.datum.popupbox main', metaanalysis, ['experiments', expIndex, 'data', colId, 'comments']);
+        });
       });
     });
 
@@ -741,7 +766,7 @@ function requestAndFillMetaanalysis() {
     computedDataSetters.forEach(function (f) { f(); });
   }
 
-  function getDatumValue(colId, expIndex) {
+  function getDatumValue(colId, expIndex, paperIndex) {
     // check cache
     if (!(colId in computedDataCache)) computedDataCache[colId] = [];
     if (expIndex in computedDataCache[colId]) {
@@ -755,13 +780,14 @@ function requestAndFillMetaanalysis() {
 
     var col = lima.columns[colId];
     var val = null;
+    var paper = currentMetaanalysis.papers[paperIndex];
     if (!col.formula) {
       // not a computed column
-      if (currentMetaanalysis.experiments[expIndex] &&
-          currentMetaanalysis.experiments[expIndex].data &&
-          currentMetaanalysis.experiments[expIndex].data[colId] &&
-          currentMetaanalysis.experiments[expIndex].data[colId].value != null) {
-        val = currentMetaanalysis.experiments[expIndex].data[colId].value;
+      if (paper.experiments[expIndex] &&
+          paper.experiments[expIndex].data &&
+          paper.experiments[expIndex].data[colId] &&
+          paper.experiments[expIndex].data[colId].value != null) {
+        val = paper.experiments[expIndex].data[colId].value;
       }
     } else {
       // computed column
@@ -777,7 +803,7 @@ function requestAndFillMetaanalysis() {
           columnNotCompletelyDefined = true;
           break;
         }
-        inputs.push(getDatumValue(col.formulaColumns[i], expIndex));
+        inputs.push(getDatumValue(col.formulaColumns[i], expIndex, paperIndex));
       }
 
       if (!columnNotCompletelyDefined) val = formula.func.apply(null, inputs);
@@ -1175,7 +1201,8 @@ function requestAndFillMetaanalysis() {
   function checkExperimentTitleUnique(title, editingEl) {
     if (title === '') throw null; // no message necessary
     if (!title.match(/^[a-zA-Z0-9.-]+$/)) throw 'only characters and digits';
-    var titles = currentMetaanalysis.experiments.map(function (exp) { return exp.title; });
+    var titles = currentMetaanalysis.papers.map(function(paper){paper.experiments.map(function (exp) { return paper.title+'-'+exp.title; })});
+    
     if (title !== editingEl.dataset.origTitle && titles.indexOf(title) !== -1) {
       throw 'must be unique';
     }
