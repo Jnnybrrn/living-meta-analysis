@@ -49,10 +49,10 @@ app.get(`/:email(${api.EMAIL_ADDRESS_RE})/`,
         (req, res) => res.sendFile('profile/profile.html', { root: './webpages/' }));
 
 app.use(`/:email(${api.EMAIL_ADDRESS_RE})/:title(${api.TITLE_RE})/`, SLASH_URL);
-app.get(`/:email(${api.EMAIL_ADDRESS_RE})/paper/`,
+app.get(`/:email(${api.EMAIL_ADDRESS_RE})/new-paper/`,
         api.checkUserExists,
         (req, res) => res.sendFile('profile/paper.html', { root: './webpages/' }));
-app.get(`/:email(${api.EMAIL_ADDRESS_RE})/metaanalysis/`,
+app.get(`/:email(${api.EMAIL_ADDRESS_RE})/new-metaanalysis/`,
         api.checkUserExists,
         (req, res) => res.sendFile('profile/metaanalysis.html', { root: './webpages/' }));
 app.get(`/:email(${api.EMAIL_ADDRESS_RE})/:title(${api.TITLE_RE})/`,

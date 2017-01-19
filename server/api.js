@@ -392,8 +392,8 @@ function listMetaanalysesForUser(req, res, next) {
 
 function getMetaanalysisVersion(req, res, next) {
   storage.getMetaanalysisByTitle(req.params.email, req.params.title, req.params.time)
-  .then((p) => {
-    res.json(extractMetaanalysisForSending(p, true, req.params.email));
+  .then((ma) => {
+    res.json(extractMetaanalysisForSending(ma, true, req.params.email));
   })
   .catch((e) => {
     console.error(e);
@@ -404,8 +404,8 @@ function getMetaanalysisVersion(req, res, next) {
 function saveMetaanalysis(req, res, next) {
   // extract from incoming data stuff that is allowed
   storage.saveMetaanalysis(extractReceivedMetaanalysis(req.body), req.user.emails[0].value, req.params.title)
-  .then((p) => {
-    res.json(extractMetaanalysisForSending(p, true, req.params.email));
+  .then((ma) => {
+    res.json(extractMetaanalysisForSending(ma, true, req.params.email));
   })
   .catch((e) => {
     if (e instanceof ValidationError) {
@@ -437,7 +437,6 @@ function extractMetaanalysisForSending(storageMetaanalysis, includeDataValues, e
   if (includeDataValues) {
   //   // todo this may not be how the data ends up being encoded
     retval.columnOrder = storageMetaanalysis.columnOrder;
-    retval.experiments = storageMetaanalysis.experiments;
     retval.hiddenCols = storageMetaanalysis.hiddenCols;
   }
 
@@ -458,7 +457,6 @@ function extractReceivedMetaanalysis(receivedMetaanalysis) {
     doi: tools.string(receivedMetaanalysis.doi),
     tags: tools.array(receivedMetaanalysis.tags, tools.string),
     comments: tools.array(receivedMetaanalysis.comments, extractReceivedComment),
-    experiments: tools.array(receivedMetaanalysis.experiments, extractReceivedExperiment),
     columnOrder: tools.array(receivedMetaanalysis.columnOrder, tools.string),
     hiddenCols: tools.array(receivedMetaanalysis.hiddenCols, tools.string),
   };

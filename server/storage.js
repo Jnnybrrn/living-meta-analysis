@@ -14,11 +14,13 @@ const config = require('./config');
 
 const gcloud = require('google-cloud')(config.gcloudProject);
 
-const datastore = gcloud.datastore({ namespace: config.gcloudDatastoreNamespace, apiEndpoint: "https://localhost:8861" });
+const datastore = gcloud.datastore({ namespace: config.gcloudDatastoreNamespace });
 
 const TITLE_RE = module.exports.TITLE_RE = '[a-zA-Z0-9.-]+';
 const TITLE_REXP = new RegExp(`^${TITLE_RE}$`);
 
+const NEW_PAPER_TITLE = "new-paper";
+const NEW_META_TITLE = "new-metaanalysis";
 
 /*ADD MACRO FOR 'shared' HERE*/
 
@@ -82,7 +84,7 @@ function checkForDisallowedChanges(current, original, columns) {
     if (paperTitles.indexOf(current.title) !== -1 || metaanalysisTitles.indexOf(current.title) !== -1) {
       throw new ValidationError('title must be unique');
     }
-    if (current.title === 'paper' || current.title  === 'metaanalysis') {
+    if (current.title === NEW_PAPER_TITLE || current.title  === NEW_META_TITLE) {
       throw new ValidationError('cannot use a reserved name');
     }
   }
@@ -415,7 +417,7 @@ module.exports.getPaperByTitle = (email, title, time) => {
   if (time) return Promise.reject('getPaperByTitle with time not implemented');
 
   // todo different users can use different titles for the same thing
-  if (title === 'paper') return Promise.resolve(newPaper(email));
+  if (title === NEW_PAPER_TITLE) return Promise.resolve(newPaper(email));
   return paperCache
   .then((papers) => {
     for (const p of papers) {
@@ -641,7 +643,7 @@ module.exports.getMetaanalysisByTitle = (email, title, time) => {
   if (time) return Promise.reject('getMetaanalysisByTitle with time not implemented');
 
   // todo different users can use different titles for the same thing
-  if (title === 'metaanalysis') return Promise.resolve(newMetaanalysis(email));
+  if (title === NEW_META_TITLE) return Promise.resolve(newMetaanalysis(email));
   return metaanalysisCache
   .then((metaanalyses) => {
     for (const ma of metaanalyses) {
