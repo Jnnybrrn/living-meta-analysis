@@ -213,6 +213,18 @@
     return true;
   }
 
+  /* Add Macro for 'Input Validation' here
+  */
+
+  _.strictToNumber = function strictToNumber(val) {
+    if (typeof val == 'number') return val;
+    if (typeof val == 'string') {
+      if (val == '') return NaN;
+      else return Number(val);
+    }
+    return NaN;
+  }
+
   /* error handling
    *
    *

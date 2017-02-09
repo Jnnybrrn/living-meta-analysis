@@ -2,6 +2,7 @@
   'use strict';
 
   var lima = window.lima;
+  var _ = lima._;
 
   lima.listFormulas = function listFormulas() {
     // at some point, the server api might want to host a list of formulas with their definitions
@@ -33,15 +34,6 @@
     ];
   }
 
-  function strictToNumber(val) {
-    if (typeof val == 'number') return val;
-    if (typeof val == 'string') {
-      if (val == '') return NaN;
-      else return Number(val);
-    }
-    return NaN;
-  }
-
   lima.getFormulaById = function getFormulaById(id) {
     var formulas = lima.listFormulas();
     for (var i=0; i<formulas.length; i++) {
@@ -54,8 +46,8 @@
 
   function logOddsRatio (experimental, control) {
     // validate the input
-    experimental = strictToNumber(experimental);
-    control = strictToNumber(control);
+    experimental = _.strictToNumber(experimental);
+    control = _.strictToNumber(control);
 
     // perform the calculation
     // may return NaN or infinities
@@ -64,8 +56,8 @@
 
   function logOddsRatioPercent (experimental, control) {
     // validate the input
-    experimental = strictToNumber(experimental);
-    control = strictToNumber(control);
+    experimental = _.strictToNumber(experimental);
+    control = _.strictToNumber(control);
 
     // perform the calculation
     // may return NaN or infinities
@@ -74,10 +66,10 @@
 
   function weight (Me, Ne, Mc, Nc) {
     // validate the input
-    Me = strictToNumber(Me);
-    Ne = strictToNumber(Ne);
-    Mc = strictToNumber(Mc);
-    Nc = strictToNumber(Nc);
+    Me = _.strictToNumber(Me);
+    Ne = _.strictToNumber(Ne);
+    Mc = _.strictToNumber(Mc);
+    Nc = _.strictToNumber(Nc);
 
     // perform the calculation
     // may return NaN or infinities
@@ -86,10 +78,10 @@
 
   function weightPercent (Me, Ne, Mc, Nc) {
     // validate the input
-    Me = strictToNumber(Me);
-    Ne = strictToNumber(Ne);
-    Mc = strictToNumber(Mc);
-    Nc = strictToNumber(Nc);
+    Me = _.strictToNumber(Me);
+    Ne = _.strictToNumber(Ne);
+    Mc = _.strictToNumber(Mc);
+    Nc = _.strictToNumber(Nc);
 
     // perform the calculation
     // may return NaN or infinities

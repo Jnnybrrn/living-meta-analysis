@@ -2,6 +2,7 @@
   'use strict';
 
   var lima = window.lima;
+  var _ = lima._;
 
   lima.listAggregates = function listAggregates() {
     return [
@@ -23,15 +24,6 @@
     ];
   }
 
-  function strictToNumber(val) {
-    if (typeof val == 'number') return val;
-    if (typeof val == 'string') {
-      if (val == '') return NaN;
-      else return Number(val);
-    }
-    return NaN;
-  }
-
   lima.getAggregateById = function getAggregateById(id) {
     var aggregates = lima.listAggregates();
     for (var i=0; i<aggregates.length; i++) {
@@ -49,7 +41,7 @@
   function mean (valueArray) {
     // validate the input
     valueArray.forEach(function(value) {
-      value = strictToNumber(value);
+      value = _.strictToNumber(value);
     })
 
     // perform the calculation
@@ -66,7 +58,7 @@
   function mode (valueArray) {
     // validate the input
     valueArray.forEach(function(value) {
-      value = strictToNumber(value);
+      value = _.strictToNumber(value);
     })
 
     // perform the calculation
@@ -88,7 +80,7 @@
   function median (valueArray) {
     // validate the input
     valueArray.forEach(function(value) {
-      value = strictToNumber(value);
+      value = _.strictToNumber(value);
     })
 
     // perform the calculation
