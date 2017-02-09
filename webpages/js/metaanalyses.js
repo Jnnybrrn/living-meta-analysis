@@ -180,6 +180,8 @@
     if (!Array.isArray(self.papers)) self.papers = [];
     if (!Array.isArray(self.columnOrder)) self.columnOrder = [];
     if (!Array.isArray(self.hiddenCols)) self.hiddenCols = [];
+    if (!Array.isArray(self.aggregateOrder)) self.aggregateOrder = [];
+    if (!Array.isArray(self.aggregates)) self.aggregates = [];
 
     self.papers.forEach(function (paper, papIndex) {
       if (!(paper instanceof lima.Paper)) {

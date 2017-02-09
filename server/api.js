@@ -415,6 +415,8 @@ function extractMetaanalysisForSending(storageMetaanalysis, includePapers, email
     paperOrder: storageMetaanalysis.paperOrder,
     hiddenCols: storageMetaanalysis.hiddenCols,
     hiddenExperiments: storageMetaanalysis.hiddenExperiments,
+    aggregateOrder: storageMetaanalysis.aggregateOrder,
+    aggregates: storageMetaanalysis.aggregates,
     // todo comments in various places?
   };
 
@@ -443,6 +445,8 @@ function extractReceivedMetaanalysis(receivedMetaanalysis) {
     paperOrder:        tools.array(receivedMetaanalysis.paperOrder, tools.string),
     hiddenCols:        tools.array(receivedMetaanalysis.hiddenCols, tools.string),
     hiddenExperiments: tools.array(receivedMetaanalysis.hiddenExperiments, tools.string),
+    aggregateOrder:    tools.array(receivedMetaanalysis.aggregateOrder, tools.string),
+    aggregates:        receivedMetaanalysis.aggregates, // TODO: validate this.. Array of assocs, each w/ string?
   };
 
   return retval;
