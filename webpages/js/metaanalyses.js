@@ -244,6 +244,7 @@
 
     fillTags(metaanalysisEl, metaanalysis);
     fillMetaanalysisExperimentTable(metaanalysis);
+    fillAggregateTable(metaanalysis);
 
     var ownURL = createPageURL(lima.getAuthenticatedUserEmail(), metaanalysis.title);
     _.setProps(metaanalysisEl, '.edityourcopy a', 'href', ownURL);
@@ -1125,6 +1126,74 @@
       focusFirstValidationError();
     }
   }
+
+  /* Add macro for 'Aggregates' here
+  */
+  function fillAggregateTable(metaanalysis) {
+    var aggregates = metaanalysis.aggregates;
+    var table = _.cloneTemplate('aggregates-table-template');
+    var addAggregateNode = _.findEl(table, 'tr.add');
+
+    metaanalysis.aggregateOrder.forEach(function (aggregateId, aggregateIndex) {
+      var aggregateEl = _.cloneTemplate('aggregate-datum-template').children[0];
+      addAggregateNode.parentElement.insertBefore(aggregateEl, addAggregateNode);
+
+      var aggregate = currentMetaanalysis.aggregates[aggregateIndex];
+
+      // TODO: Fill value in a similar manner to ComputedColumns -> Invoke function
+
+      // Popup box
+      // Non-editing information
+      var aggrFunction = lima.getAggregateById(aggregate.func)
+      _.fillEls(aggregateEl, '.function', aggrFunction ? aggrFunction.label : "No function selected");
+
+      // fill in information about where the value was aggregated from
+      var aggregatedFrom ="";
+      var aggregateColumnsCount = aggregate.columns.length;
+      if (aggregateColumnsCount != 0) {
+        for (var i = 0; i < aggregateColumnsCount; i++) {
+          var column = lima.columns[aggregate.columns[i]];
+          aggregatedFrom += column.title + ', ';
+        }
+      } else {
+        aggregatedFrom = "No column(s) selected";
+      }
+
+      _.fillEls(aggregateEl,  '.aggregatedfrom', aggregatedFrom);
+
+      // Editing Options
+      // Add an option for every aggregate we know
+      var aggregates = lima.listAggregates();
+      var aggregateFunctionsDropdown = _.findEl(aggregateEl, 'select.aggregatefunctions')
+      for (var i = 0; i < aggregates.length; i++){
+        var el = document.createElement("option");
+        el.textContent = aggregates[i].label;
+        el.value = aggregates[i].id;
+        if (aggregate.func === el.value) el.selected = true;
+        aggregateFunctionsDropdown.appendChild(el);
+      }
+
+      // TODO: Continue here, adding aggregate.columns Dropdown boxes in a similar way to
+      // computed columns. Search for "react to changes in the selection of formula" for
+      // beginning information.
+    });
+
+    // Event handlers
+    _.addEventListener(table, 'tr.add button.add', 'click', addNewAggregateToMetaanalysis);
+
+    var aggregatesContainer = _.findEl('#metaanalysis .aggregates');
+    aggregatesContainer.appendChild(table);
+  }
+
+  function addNewAggregateToMetaanalysis() {
+    var aggregate = lima.newAggregate();
+    currentMetaanalysis.aggregateOrder.push(aggregate.id);
+    currentMetaanalysis.aggregates.push(aggregate);
+    updateMetaanalysisView();
+    _.scheduleSave(currentMetaanalysis);
+  }
+
+
 
   /* comments
    *

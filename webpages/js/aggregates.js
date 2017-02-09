@@ -158,4 +158,8 @@
     return total;
   }
 
+  lima.newAggregate = function() {
+    return {id: '/id/aggr/' + Date.now(), func: 'none', columns: []}
+  }
+
 })(window, document);

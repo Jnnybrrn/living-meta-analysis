@@ -91,6 +91,7 @@
     <!-- when not editing, show something for empty doi and link (or nothing at all?) -->
     <!-- todo comments -->
     <div class="experiments"></div>
+    <div class="aggregates"></div>
     <p class='no-table'>No data has been entered for this meta-analysis yet.
       <span class="only-if-page-about-you">Turn editing on to add data.</span><!-- todo instruction to clone the paper? --></p>
   </section>
@@ -340,6 +341,65 @@
     </div>
   </td>
 </template>
+<template id="aggregates-table-template">
+  <table class="aggregates">
+    <tbody>
+      <tr>
+        <th>
+          <div>
+            <span>Aggregates:</span>
+          </div>
+        </th>
+      </tr>
+      <tr class="add">
+        <th><button class="add notunpin not-unsaved">add an aggregate</button>
+            <button class="when-unsaved" disabled title="can't add an aggregate when some changes are unsaved">add an aggregate</button></th>
+      </tr>
+    </tbody>
+  </table>
+</template>
+<template id="aggregate-datum-template">
+  <tr>
+    <td class="datum popupboxtrigger popupboxhighlight">
+      <span class="value aggregated">error</span>
+      <div class="datum popupbox" data-boxtype='aggregatepopupbox'>
+        <div class="pin"></div>
+        <header>
+          <p class="value" placeholder="no value"></p>
+          <div class="aggregated">
+            <p class="not-editing">
+              <span class="function"></span>
+              (
+              <span class="aggregatedfrom"></span>
+              )
+            </p>
+            <select class="aggregatefunctions editing">
+              <option value=''>Select function</option>
+              <!-- gets populated in the code, in which case the option above goes away -->
+            </select>
+            <div class="aggregatecolumnsselection editing">
+              <!-- gets populated in the code -->
+            </div>
+          </div>
+          <p><span class="commentcount"></span> comments:</p>
+        </header>
+        <main><!-- this is where the comments will come --></main>
+        <div class="comment new when-signed-on">
+          <header>
+            new comment:
+          </header>
+          <p>
+            <span class="text" contenteditable placeholder="enter a new comment"></span>
+            <span class="buttons">
+              <button class="cancel">cancel</button>
+              <button class="add confirm" disabled>add comment</button>
+            </span>
+          </p>
+        </div>
+      </div>
+    </td>
+  </tr>
+</template>
 <template id="comment-template">
   <div class="comment">
     <header>
@@ -365,6 +425,7 @@
 <script src="/js/userprofile.js"></script>
 <script src="/js/columns.js"></script>
 <script src="/js/formulas.js"></script>
+<script src="/js/aggregates.js"></script>
 <script src="/js/papers.js"></script>
 <script src="/js/metaanalyses.js"></script>
 <script src="/js/version.js"></script>
