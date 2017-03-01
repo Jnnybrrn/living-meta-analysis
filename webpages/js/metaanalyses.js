@@ -740,7 +740,7 @@
     return th;
   }
 
-  function fillComputedColumnHeading(metaanalysis, col, columnIndex) {
+  function fillComputedColumnHeading(metaanalysis, col /*, columnIndex */) {
     var th = _.cloneTemplate('computed-col-heading-template').children[0];
 
     th.classList.add('result');
