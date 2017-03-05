@@ -182,6 +182,7 @@
     if (!Array.isArray(self.hiddenCols)) self.hiddenCols = [];
     if (!Array.isArray(self.tags)) self.tags = [];
     if (!Array.isArray(self.aggregates)) self.aggregates = [];
+    if (!self.excludedExperiments) self.excludedExperiments = {};
 
     self.columns.forEach(function (col) {
       if (typeof col === 'object') {
@@ -268,6 +269,34 @@
     }
   }
 
+  // todo: Fixme, this is misbehaving. I suspect it is because indexOf[2] might not catch arr[1]=2
+
+  // Turn old records of {oldPapIndex: [oldExpIndex, foo]} into {newPapIndex: [newExpIndex, foo]}
+  // Either pap or exp index likely will be the same old and new.
+  function updateExcludedExperiments(oldPapIndex, oldExpIndex, newPapIndex, newExpIndex) {
+    if (currentMetaanalysis.excludedExperiments[oldPapIndex] != undefined) {
+      console.log("At the beginning", currentMetaanalysis.excludedExperiments);
+      console.log("P:",oldPapIndex, " becomes -> ", newPapIndex);
+      console.log("E:",oldExpIndex, " becomes -> ", newExpIndex);
+      var oldExp = currentMetaanalysis.excludedExperiments[oldPapIndex].indexOf(oldExpIndex);
+      if (oldExp != -1) {
+        // We used to have this excluded, so we must update it
+        currentMetaanalysis.excludedExperiments[oldPapIndex].splice(oldExp, 1)
+        currentMetaanalysis.excludedExperiments[oldPapIndex].push(newExpIndex);
+      }
+
+      // Update papIndex
+      if (oldPapIndex != newPapIndex){
+        currentMetaanalysis.excludedExperiments[newPapIndex] = currentMetaanalysis.excludedExperiments[oldPapIndex];
+        delete currentMetaanalysis.excludedExperiments[oldPapIndex];
+      }
+      console.log("At the end", currentMetaanalysis.excludedExperiments);
+    } else {
+      // None from this paper were excluded, do nothing
+      return;
+    }
+  }
+
   var startNewTag = null;
   var flashTag = null;
   var rebuildingDOM = false;
@@ -287,7 +316,7 @@
     } else {
       _.removeClass('body', 'new');
     }
-
+    console.log(metaanalysis.excludedExperiments);
     var metaanalysisTemplate = _.byId('metaanalysis-template');
     var metaanalysisEl = _.cloneTemplate(metaanalysisTemplate).children[0];
     metaanalysisTemplate.parentElement.insertBefore(metaanalysisEl, metaanalysisTemplate);
@@ -865,6 +894,7 @@
           _.addEventListener(paperTitleEl, '.linkedit button.test', 'click', _.linkEditTest);
           _.addEventListener(paperTitleEl, '.linkedit button.test', 'mousedown', _.preventLinkEditBlur);
           _.addEventListener(paperTitleEl, '.paperinfo > button.move', 'click', movePaper);
+          _.addEventListener(paperTitleEl, '.paperinfo > button.exclude', 'click', excludePaper);
         }
 
         _.fillEls(tr, '.exptitle', experiment.title);
@@ -891,6 +921,7 @@
         _.setDataProps(tr, '.experimentinfo.popupbox', 'index', papIndex+','+expIndex);
 
         _.addEventListener(tr, '.experimentinfo > button.move', 'click', moveExperiment);
+        _.addEventListener(tr, '.experimentinfo > button.exclude', 'click', excludeExperiment);
 
 
         metaanalysis.columns.forEach(function (col) {
@@ -2108,6 +2139,7 @@
    * `left` indicates direction; if `most`, move to the beginning (left) or end (right) of the columns list.
    */
   function findNextNonHiddenCol(currentIndex, left, most) {
+    currentIndex = parseInt(currentIndex);
     if (left) {
       if (most || currentIndex <= 0) return 0;
       currentIndex -= 1;
@@ -2294,6 +2326,7 @@
    * `up` indicates direction (up meaning left in array order); if `most`, move to the beginning (top) or end (bottom) of the aggregate list.
    */
   function findNextAggr(currentIndex, up, most) {
+    currentIndex = parseInt(currentIndex);
     if (up) {
       if (most || currentIndex <= 0) return 0;
       currentIndex -= 1;
@@ -2338,6 +2371,7 @@
 
     if (!currentMetaanalysis.papers[papIndex]) return console.error('paper[' + papIndex + '] not found in metaanalysis');
     var newPosition = findNextPap(papIndex, up, most);
+    updateExcludedExperiments(papIndex, null, newPosition, null);
     _.moveArrayElement(currentMetaanalysis.papers, papIndex, newPosition);
     updateMetaanalysisView();
     _.scheduleSave(currentMetaanalysis);
@@ -2349,6 +2383,7 @@
    *
    */
   function findNextPap(currentIndex, up, most) {
+    currentIndex = parseInt(currentIndex);
     if (up) {
       if (most || currentIndex <= 0) return 0;
       currentIndex -= 1;
@@ -2360,7 +2395,17 @@
   }
 
   // todo: functions excludePaper & doexcludePaper here,
-  // discluding a paper should just exclude all it's experiments
+  function excludePaper() {
+    // a click will pin the box,
+    // this timeout makes sure the click gets processed first and then we do the moving
+    setTimeout(doExcludePaper, 0, this);
+  }
+
+  function doExcludePaper() {
+    // discluding a paper should just exclude all it's experiments
+    return;
+  }
+
 
   /* BANNER HERE FOR 'Changing Experiments' */
 
@@ -2384,6 +2429,7 @@
     if (!paper.experiments[expIndex]) return console.error('paper[' + papIndex + '] does not contain experiment['+ expIndex +']');
 
     var newPosition = findNextExp(papIndex, expIndex, up, most);
+    updateExcludedExperiments(papIndex, expIndex, papIndex, newPosition);
     _.moveArrayElement(currentMetaanalysis.papers[papIndex].experiments, expIndex, newPosition);
     updateMetaanalysisView();
     _.scheduleSave(paper);
@@ -2395,6 +2441,8 @@
    *
    */
   function findNextExp(papIndex, currentIndex, up, most) {
+    papIndex = parseInt(papIndex);
+    currentIndex = parseInt(currentIndex);
     if (up) {
       if (most || currentIndex <= 0) return 0;
       currentIndex -= 1;
@@ -2405,7 +2453,32 @@
     return currentIndex;
   }
 
-  // todo: functions excludeExperiment & doExcludeExperiment here.
+  function excludeExperiment() {
+    // a click will pin the box,
+    // this timeout makes sure the click gets processed first and then we do the moving
+    setTimeout(doExcludeExperiment, 0, this);
+  }
+
+  function doExcludeExperiment(el) {
+    var indexes = (_.findPrecedingEl(el, 'div.experimentinfo').dataset.index).split(',');
+    var papIndex = indexes[0];
+    var expIndex = indexes[1];
+
+    if (isNaN(papIndex) || isNaN(expIndex)) return; // we don't know what to move
+
+    if (!currentMetaanalysis.papers[papIndex].experiments[expIndex]) return console.error('paper[' + papIndex + '] does not contain experiment['+ expIndex +']');
+
+    // If it doesn't already exist, set it as an empty array
+    if (!currentMetaanalysis.excludedExperiments[papIndex]) {
+      currentMetaanalysis.excludedExperiments[papIndex] = [];
+    }
+    // Add this exp if it isn't already in there.
+    if (currentMetaanalysis.excludedExperiments[papIndex].indexOf(expIndex) == -1) {
+      currentMetaanalysis.excludedExperiments[papIndex].push(parseInt(expIndex));
+      updateMetaanalysisView();
+      _.scheduleSave(currentMetaanalysis);
+    }
+  }
 
   /* DOM updates
    *

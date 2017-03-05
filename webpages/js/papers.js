@@ -1428,7 +1428,6 @@
     setTimeout(doMoveColumn, 0, this);
   }
 
-// hedgehog - Maybe we need to fix this shit
   function doMoveColumn(el) {
     var left = el.classList.contains('left');
     var most = el.classList.contains('most');

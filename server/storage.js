@@ -602,6 +602,10 @@ function migrateMetaanalysis(metaanalysis) {
     metaanalysis.columns = metaanalysis.columnOrder;
     delete metaanalysis.columnOrder;
   }
+  if (metaanalysis.hiddenExperiments) {
+    metaanalysis.excludedExperiments = metaanalysis.hiddenExperiments;
+    delete metaanalysis.hiddenExperiments;
+  }
   return metaanalysis;
 }
 
