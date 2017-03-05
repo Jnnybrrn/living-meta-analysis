@@ -118,67 +118,6 @@ function checkForDisallowedChanges(current, original, columns) {
       throw new ValidationError('cannot use a reserved name');
     }
   }
-
-  // check that every experiment has at least the data values that were there originally
-  // check that only last comment by a given user has changed, if any
-  if (current.experiments) {
-    const expTitles = {};
-
-    for (let expIndex = 0; expIndex < current.experiments.length; expIndex++) {
-      const exp = current.experiments[expIndex];
-      const origExp = (original.experiments || [])[expIndex] || {};
-
-      // check experiment titles are there and unique for this current
-      if (!TITLE_REXP.test(exp.title)) {
-        throw new ValidationError('experiment title cannot contain spaces or special characters');
-      }
-      if (exp.title in expTitles) {
-        throw new ValidationError('experiment titles must be unique');
-      }
-      expTitles[exp.title] = true;
-
-      if (origExp.data) {
-        if (!exp.data) throw new ValidationError('cannot remove experiment data array');
-
-        for (const origDataKey of Object.keys(origExp.data)) {
-          if (!(origDataKey in exp.data)) {
-            throw new ValidationError('cannot remove experiment data');
-          }
-
-          const comments = exp.data[origDataKey].comments;
-          const origComments = origExp.data[origDataKey].comments;
-
-          if (origComments) {
-            if (!comments || comments.length < origComments.length) {
-              throw new ValidationError('cannot remove comments');
-            }
-
-            const changedCommentByOwner = {};
-            for (let i = 0; i < origComments.length; i++) {
-              const comment = comments[i];
-              const origComment = origComments[i];
-              if (comment.CHECKby !== origComment.by) {
-                throw new ValidationError('cannot change comment owner');
-              }
-              if (comment.CHECKby in changedCommentByOwner) {
-                throw new ValidationError('cannot edit comment before the last by a given owner');
-              }
-              if (comment.text !== origComment.text) {
-                changedCommentByOwner[comment.CHECKby] = 1;
-              }
-            }
-          }
-        }
-      }
-      if (exp.data) {
-        for (const dataKey of Object.keys(exp.data)) {
-          if (!(dataKey in columns)) {
-            throw new ValidationError('cannot include data with unknown column ID ' + dataKey);
-          }
-        }
-      }
-    }
-  }
 }
 
 const allTitles = [];

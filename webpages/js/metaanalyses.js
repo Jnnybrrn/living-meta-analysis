@@ -256,12 +256,16 @@
   }
 
   function updatePaperOrder() {
+    var newPapOrder = [];
     currentMetaanalysis.papers.forEach(function(paper){
-      if (paper.id && currentMetaanalysis.paperOrder.indexOf(paper.id) == -1) {
-        currentMetaanalysis.paperOrder.push(paper.id);
-        _.scheduleSave(currentMetaanalysis);
+      if (paper.id) {
+        newPapOrder.push(paper.id);
       }
     });
+    if (JSON.stringify(currentMetaanalysis.paperOrder) != JSON.stringify(newPapOrder)) {
+      currentMetaanalysis.paperOrder = newPapOrder;
+      _.scheduleSave(currentMetaanalysis);
+    }
   }
 
   var startNewTag = null;
@@ -860,6 +864,7 @@
 
           _.addEventListener(paperTitleEl, '.linkedit button.test', 'click', _.linkEditTest);
           _.addEventListener(paperTitleEl, '.linkedit button.test', 'mousedown', _.preventLinkEditBlur);
+          _.addEventListener(paperTitleEl, '.paperinfo > button.move', 'click', movePaper);
         }
 
         _.fillEls(tr, '.exptitle', experiment.title);
@@ -879,8 +884,14 @@
         addConfirmedUpdater(tr, '.exptitle.editing', '.exptitle + .exptitlerename', '.exptitle.editing ~ * .exprenamecancel', 'textContent', checkExperimentTitleUnique, paper, ['experiments', expIndex, 'title'], deleteNewExperiment);
 
         // Now we track paperinfo@<index> and experimentinfo@<paper>,<exp>
-        setupPopupBoxPinning(tr, '.paperinfo.popupbox', papIndex);
-        setupPopupBoxPinning(tr, '.experimentinfo.popupbox', papIndex+','+expIndex);
+        setupPopupBoxPinning(tr, '.paperinfo.popupbox', paper.id);
+        setupPopupBoxPinning(tr, '.experimentinfo.popupbox', paper.id+','+experiment.title);
+
+        _.setDataProps(tr, '.paperinfo.popupbox', 'index', papIndex);
+        _.setDataProps(tr, '.experimentinfo.popupbox', 'index', papIndex+','+expIndex);
+
+        _.addEventListener(tr, '.experimentinfo > button.move', 'click', moveExperiment);
+
 
         metaanalysis.columns.forEach(function (col) {
           // early return - ignore this column
@@ -2309,6 +2320,92 @@
     updateMetaanalysisView();
     _.scheduleSave(currentMetaanalysis);
   }
+
+  /* BANNER HERE FOR 'Changing Papers' */
+
+  function movePaper() {
+    // a click will pin the box,
+    // this timeout makes sure the click gets processed first and then we do the moving
+    setTimeout(doMovePaper, 0, this);
+  }
+
+  function doMovePaper(el) {
+    var up = el.classList.contains('up');
+    var most = el.classList.contains('most');
+    var papIndex = _.findPrecedingEl(el, 'div.paperinfo').dataset.index;
+
+    if (isNaN(papIndex)) return; // we don't know what to move
+
+    if (!currentMetaanalysis.papers[papIndex]) return console.error('paper[' + papIndex + '] not found in metaanalysis');
+    var newPosition = findNextPap(papIndex, up, most);
+    _.moveArrayElement(currentMetaanalysis.papers, papIndex, newPosition);
+    updateMetaanalysisView();
+    _.scheduleSave(currentMetaanalysis);
+  }
+
+  /*
+   * find where to move an paper from its current index;
+   * `up` indicates direction (up meaning left in array order); if `most`, move to the beginning (top) or end (bottom) of the paper list.
+   *
+   */
+  function findNextPap(currentIndex, up, most) {
+    if (up) {
+      if (most || currentIndex <= 0) return 0;
+      currentIndex -= 1;
+    } else {
+      if (most) return currentMetaanalysis.papers.length - 1;
+      currentIndex += 1;
+    }
+    return currentIndex;
+  }
+
+  // todo: functions excludePaper & doexcludePaper here,
+  // discluding a paper should just exclude all it's experiments
+
+  /* BANNER HERE FOR 'Changing Experiments' */
+
+  function moveExperiment() {
+    // a click will pin the box,
+    // this timeout makes sure the click gets processed first and then we do the moving
+    setTimeout(doMoveExperiment, 0, this);
+  }
+
+  function doMoveExperiment(el) {
+    var up = el.classList.contains('up');
+    var most = el.classList.contains('most');
+    var indexes = (_.findPrecedingEl(el, 'div.experimentinfo').dataset.index).split(',');
+    var papIndex = indexes[0];
+    var expIndex = indexes[1];
+
+    if (isNaN(papIndex) || isNaN(expIndex)) return; // we don't know what to move
+
+    var paper = currentMetaanalysis.papers[papIndex];
+    if (!paper) return console.error('paper[' + papIndex + '] not found in metaanalysis');
+    if (!paper.experiments[expIndex]) return console.error('paper[' + papIndex + '] does not contain experiment['+ expIndex +']');
+
+    var newPosition = findNextExp(papIndex, expIndex, up, most);
+    _.moveArrayElement(currentMetaanalysis.papers[papIndex].experiments, expIndex, newPosition);
+    updateMetaanalysisView();
+    _.scheduleSave(paper);
+  }
+
+  /*
+   * find where to move an experiment from its current index;
+   * `up` indicates direction (up meaning left in array order); if `most`, move to the beginning (top) or end (bottom) of the experiment list.
+   *
+   */
+  function findNextExp(papIndex, currentIndex, up, most) {
+    if (up) {
+      if (most || currentIndex <= 0) return 0;
+      currentIndex -= 1;
+    } else {
+      if (most) return currentMetaanalysis.papers[papIndex].experiments.length - 1;
+      currentIndex += 1;
+    }
+    return currentIndex;
+  }
+
+  // todo: functions excludeExperiment & doExcludeExperiment here.
 
   /* DOM updates
    *

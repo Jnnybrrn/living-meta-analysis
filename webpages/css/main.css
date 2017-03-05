@@ -1065,6 +1065,8 @@ body:not(.page-about-you).signed-on #paper > header .edityourcopy {
   display: none;
 }
 
+#paper button.up span,
+#paper button.down span,
 #metaanalysis button.up span,
 #metaanalysis button.down span {
   display: inline-block;

@@ -522,7 +522,10 @@
       _.setDataProps(tr, '.exptitle.editing', 'origTitle', experiment.title);
       addConfirmedUpdater(tr, '.exptitle.editing', '.exptitle + .exptitlerename', null, 'textContent', checkExperimentTitleUnique, paper, ['experiments', expIndex, 'title'], deleteNewExperiment);
 
-      setupPopupBoxPinning(tr, '.fullrowinfo.popupbox', expIndex);
+      setupPopupBoxPinning(tr, '.fullrowinfo.popupbox', experiment.title);
+      _.setDataProps(tr, '.fullrowinfo.popupbox', 'index', expIndex);
+
+      _.addEventListener(tr, '.fullrowinfo > button.move', 'click', moveExperiment);
 
       paper.columns.forEach(function (col) {
         // early return - ignore this column
@@ -1602,6 +1605,45 @@
 
     updatePaperView();
     _.scheduleSave(currentPaper);
+  }
+
+  /* BANNER HERE FOR 'Changing Experiments' */
+
+  function moveExperiment() {
+    // a click will pin the box,
+    // this timeout makes sure the click gets processed first and then we do the moving
+    setTimeout(doMoveExperiment, 0, this);
+  }
+
+  function doMoveExperiment(el) {
+    var up = el.classList.contains('up');
+    var most = el.classList.contains('most');
+    var expIndex = _.findPrecedingEl(el, '.fullrowinfo').dataset.index;
+
+    if (isNaN(expIndex)) return; // we don't know what to move
+
+    if (!currentPaper.experiments[expIndex]) return console.error('paper does not contain experiment['+ expIndex +']');
+
+    var newPosition = findNextExp(expIndex, up, most);
+    _.moveArrayElement(currentPaper.experiments, expIndex, newPosition);
+    updatePaperView();
+    _.scheduleSave(currentPaper);
+  }
+
+  /*
+   * find where to move an experiment from its current index;
+   * `up` indicates direction (up meaning left in array order); if `most`, move to the beginning (top) or end (bottom) of the experiment list.
+   *
+   */
+  function findNextExp(currentIndex, up, most) {
+    if (up) {
+      if (most || currentIndex <= 0) return 0;
+      currentIndex -= 1;
+    } else {
+      if (most) return currentPaper.experiments.length - 1;
+      currentIndex += 1;
+    }
+    return currentIndex;
   }
 
   /* DOM updates
